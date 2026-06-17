@@ -1,4 +1,4 @@
-# Shufersal Cart Skill
+# Shufersal Shop Skill
 
 A Claude skill for adding grocery products to a [Shufersal](https://www.shufersal.co.il) online shopping cart using natural language.
 
@@ -10,6 +10,7 @@ Say things like **"add milk, eggs, and 2 pitas"** and the skill translates that 
 2. **Dictionary-first matching** — Your request is matched against `product-dictionary.json`, a curated list of products you've ordered before. Each product has human-friendly aliases in English and Hebrew, so "milk" resolves instantly to חלב בקרטון 3% תנובה without searching.
 3. **No guessing** — If a product isn't in your dictionary, the skill tells you instead of picking a random search result. You add it manually once, and it's there forever.
 4. **Quantities from habit** — If you don't specify a quantity, the skill uses your typical order quantity (e.g., you always buy 2 pitas, so "add pita" adds 2).
+5. **Verified adds** — Every add is checked against the cart afterward, so the skill reports what actually landed (not just what it tried), with a reason when something fails.
 
 ## Safety
 
@@ -23,22 +24,28 @@ Checkout must be done manually on the Shufersal website.
 
 ## Setup
 
-The skill is self-contained: it owns its scripts, its dictionary, and its config.
-[shufersal-automation](https://github.com/eshaham/shufersal-automation) is an external
-dependency, expected as a sibling directory (`../shufersal-automation`).
+The skill is self-contained. Its one external dependency,
+[shufersal-automation](https://github.com/eshaham/shufersal-automation) (MIT), is vendored under
+`vendor/shufersal-automation`, so `npm install` wires it up locally — no external checkout or
+registry access required. (It's vendored rather than installed as a package because the library is
+consumed as TypeScript source via an internal `~/*` path alias, which only resolves when the
+library is treated as first-party source.)
 
 ### Prerequisites
 
-- Node.js, and the `shufersal-automation` library checked out at `../shufersal-automation`
+- Node.js
 - A local Chrome installation
 
 ### Install
 
 ```bash
+git clone <this-repo>
+cd shufersal-shop
 npm install
+cp .env.example .env   # then edit .env with your details
 ```
 
-Then create a `.env` in this directory with your credentials:
+`.env` holds your credentials (it is gitignored):
 
 ```
 SHUFERSAL_USERNAME=your-username
@@ -46,16 +53,22 @@ SHUFERSAL_PASSWORD=your-password
 CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
 
+### Install as a Claude Skill
+
+Place this directory under your Claude skills location (e.g. a `shufersal-shop` folder in
+`.claude/skills/`, or a junction/symlink pointing to this repo). The skill is invoked by the
+`name` in `SKILL.md` (`shufersal-shop`), so it's available as `/shufersal-shop`.
+
 ### Scripts
 
 | Command | What it does |
 |---------|--------------|
-| `npx tsx scripts/add-to-cart.ts "milk" "pita=3"` | Add items to cart (the runner) |
-| `npx tsx scripts/build-dictionary.ts 20` | Scan the last 20 orders into `dictionary-draft.json` to seed the dictionary |
+| `npm run add -- "milk" "pita=3"` | Add items to cart (the runner); verifies each add |
+| `npm run view` | Show the current cart contents (read-only) |
+| `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` to seed the dictionary |
+| `npm run typecheck` | Type-check the scripts |
 
-### Install as a Claude Skill
-
-Place this directory where your Claude skills are configured, or point your skill path to it.
+(You can also call the scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.)
 
 ## Product Dictionary
 
@@ -74,7 +87,7 @@ Place this directory where your Claude skills are configured, or point your skil
 
 ### Building the Dictionary
 
-Run `npx tsx scripts/build-dictionary.ts 20` to scan your last 20 orders and generate
+Run `npm run build-dictionary -- 20` to scan your last 20 orders and generate
 `dictionary-draft.json` (auto-seeded with Hebrew aliases). Then curate it into
 `product-dictionary.json` by adding English names and casual terms.
 
@@ -94,6 +107,10 @@ When the skill can't find a product, add a new entry with:
 |------|---------|
 | `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart |
 | `product-dictionary.json` | Curated product list with aliases, built from your order history |
-| `scripts/add-to-cart.ts` | The runner — matches items and adds them to the cart |
+| `scripts/add-to-cart.ts` | The runner — matches items, adds them, and verifies each add |
+| `scripts/view-cart.ts` | Read-only cart viewer (maps product codes back to dictionary names) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary |
+| `logs/add-to-cart.log` | Per-run trace from the runner, for debugging adds (gitignored) |
+| `vendor/shufersal-automation/` | Bundled library source (MIT) — the only external dependency |
 | `evals/` | Test cases for skill evaluation |
+| `.env.example` | Template for credentials; copy to `.env` |

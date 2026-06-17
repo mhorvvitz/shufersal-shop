@@ -10,8 +10,8 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "shufersal-automation": ["../shufersal-automation/src/index.ts"],
-      "~/*": ["../shufersal-automation/src/*"]
+      "shufersal-automation": ["vendor/shufersal-automation/src/index.ts"],
+      "~/*": ["vendor/shufersal-automation/src/*"]
     }
   },
   "include": ["scripts/**/*.ts"]

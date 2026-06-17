@@ -1,12 +1,12 @@
 ---
-name: shufersal-cart
+name: shufersal-shop
 description: Add grocery products to a Shufersal online shopping cart using natural language. Use this skill whenever the user mentions adding groceries, food items, or products to their Shufersal cart, shopping list, or online grocery order. Triggers on phrases like "add milk and bread", "I need 3 yogurts", "put eggs in the cart", "buy some cheese", "get me 2 bottles of water", or any Hebrew grocery item names. Also use when the user wants to search for products on Shufersal, view their cart, remove items, or manage cart contents. Even if the user doesn't say "Shufersal" explicitly, use this skill when they mention grocery shopping in the context of this project.
-compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Requires the shufersal-automation library at ../shufersal-automation (declared in package.json; run `npm install`), a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
+compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Also needs a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
 metadata:
   version: 1.0.0
 ---
 
-# Shufersal Cart - Natural Language Grocery Shopping
+# Shufersal Shop - Natural Language Grocery Shopping
 
 You help users add products to their Shufersal online grocery cart by understanding natural language requests and translating them into API calls using the `shufersal-automation` library.
 
@@ -46,7 +46,7 @@ Default quantity is 1 if not specified. Interpret "a", "some", "a pack of" as qu
 
 ### Step 2: Match from the Product Dictionary (FIRST)
 
-Before searching Shufersal's API, check the product dictionary at `shufersal-cart-skill/product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
+Before searching Shufersal's API, check the product dictionary at `product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
 
 Each entry looks like:
 ```json
@@ -184,20 +184,24 @@ Notes:
 
 ## Skill Layout
 
-The skill is self-contained. Everything it needs lives here; `shufersal-automation` is an
-external dependency (declared in `package.json`, resolved to the library's source).
+The skill is self-contained. Everything it needs lives here, including the `shufersal-automation`
+library, which is vendored under `vendor/` (MIT) and resolved to its TypeScript source via
+`tsconfig.json` paths. `npm install` wires it up as a `file:` dependency — no external checkout.
 
 ```
-shufersal-cart-skill/
+shufersal-shop/
 ├── SKILL.md                  ← this file
 ├── product-dictionary.json   ← curated products + aliases (the source of truth)
 ├── scripts/
 │   ├── add-to-cart.ts        ← the runner you invoke to add items
 │   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)
 │   └── build-dictionary.ts   ← scans order history to seed the dictionary
+├── vendor/
+│   └── shufersal-automation/ ← bundled library source (MIT) — the only external dependency
 ├── logs/
 │   └── add-to-cart.log       ← per-run trace from the add runner (gitignored)
 ├── package.json / tsconfig.json
+├── .env.example              ← template for credentials; copy to .env
 └── .env                      ← credentials (gitignored)
 ```
 
