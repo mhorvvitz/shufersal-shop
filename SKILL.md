@@ -70,19 +70,38 @@ Each entry looks like:
 
 This is important because Shufersal has thousands of products and a search for "cheese" returns dozens of results. Without the dictionary, the skill cannot be confident it's picking the right product.
 
-### Step 3: Add to Cart
+### Step 3: Run the Cart Runner
 
-Use `session.addToCart()` with the product codes from the dictionary:
+**Do not write a new script for each request.** There is one reusable runner at
+`shufersal-automation/src/example/add-to-cart.ts`. It loads the dictionary, performs the
+alias matching described above, adds matched items to the cart, and prints a JSON result.
+Your job is just to translate the parsed request into arguments and run it.
 
-```typescript
-await session.addToCart([
-  {
-    productCode: entry.id,           // e.g., "P_4131074"
-    quantity: qty,                    // user's quantity or typicalQuantity
-    sellingMethod: entry.sellingMethod  // "UNIT" or "WEIGHT"
-  }
-]);
+Each argument is one requested item, in the form `alias` or `alias=qty` (quantity separated
+with `=` so Hebrew names with spaces stay intact). Omit `=qty` to use the dictionary's
+`typicalQuantity`.
+
+Run it from the example directory:
+
+```bash
+cd shufersal-automation/src/example
+npx tsx add-to-cart.ts "milk" "pita=3" "eggs" "shredded cheese"
 ```
+
+The runner prints a block between `RESULT_JSON_START` and `RESULT_JSON_END`:
+
+```json
+{
+  "added": [{ "name": "חלב בקרטון 3% שומן", "brand": "תנובה", "qty": 1 }],
+  "unmatched": ["bread"],
+  "ambiguous": [{ "query": "cheese", "options": [ ... ] }],
+  "cart": { "itemCount": 12, "total": 187.5 }
+}
+```
+
+Parse that JSON to write your reply. `unmatched` items aren't in the dictionary (tell the user
+to add them manually); `ambiguous` items matched more than one entry (ask which they meant —
+the runner does not add ambiguous items).
 
 ### Step 4: Confirm
 
@@ -109,44 +128,21 @@ Cart: 12 items | ₪187.50 | Delivery: Tuesday 10:00-12:00
 
 Do not list every item in the cart — only what was just added. The user can check the full cart on the website.
 
-## Writing the Script
+## The Runner Script
 
-Write a TypeScript script in `shufersal-automation/src/example/` that:
+All cart additions go through the single reusable runner:
+`shufersal-automation/src/example/add-to-cart.ts`. It:
 
-1. Reads the product dictionary from `shufersal-cart-skill/product-dictionary.json`
-2. Matches the user's requested items against dictionary aliases
-3. Creates a bot (headless: true) and session using env vars (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
-4. Adds matched items to cart via `session.addToCart()`
-5. Reports results and any unmatched items
-6. Closes the session
+1. Loads the product dictionary from `shufersal-cart-skill/product-dictionary.json`
+2. Matches each CLI argument against dictionary aliases (exact, case-insensitive)
+3. Separates results into matched / unmatched / ambiguous
+4. Creates a bot (`headless: true`) and session from env vars (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
+5. Adds matched items via `session.addToCart()`, then reads the cart back
+6. Prints the JSON result block and closes the session
 
-```typescript
-import { ShufersalBot } from 'shufersal-automation';
-import dotenv from 'dotenv';
-import fs from 'fs';
-
-dotenv.config();
-
-interface DictionaryEntry {
-  id: string;
-  name: string;
-  brand: string;
-  typicalQuantity: number;
-  sellingMethod: string;
-  aliases: string[];
-}
-
-const dictionary: DictionaryEntry[] = JSON.parse(
-  fs.readFileSync('path/to/product-dictionary.json', 'utf-8')
-);
-
-function findProduct(query: string): DictionaryEntry | null {
-  const q = query.toLowerCase().trim();
-  return dictionary.find((entry) =>
-    entry.aliases.some((alias) => alias.toLowerCase() === q)
-  ) ?? null;
-}
-```
+You normally never edit this file — just call it with the right arguments. Only modify it if the
+result format or matching behavior itself needs to change. If you find yourself wanting to write a
+new one-off script to add items, stop: run this instead.
 
 ## Managing the Dictionary
 
