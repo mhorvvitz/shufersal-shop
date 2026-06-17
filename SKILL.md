@@ -1,6 +1,9 @@
 ---
 name: shufersal-cart
 description: Add grocery products to a Shufersal online shopping cart using natural language. Use this skill whenever the user mentions adding groceries, food items, or products to their Shufersal cart, shopping list, or online grocery order. Triggers on phrases like "add milk and bread", "I need 3 yogurts", "put eggs in the cart", "buy some cheese", "get me 2 bottles of water", or any Hebrew grocery item names. Also use when the user wants to search for products on Shufersal, view their cart, remove items, or manage cart contents. Even if the user doesn't say "Shufersal" explicitly, use this skill when they mention grocery shopping in the context of this project.
+compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Requires the shufersal-automation library at ../shufersal-automation (declared in package.json; run `npm install`), a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
+metadata:
+  version: 1.0.0
 ---
 
 # Shufersal Cart - Natural Language Grocery Shopping
