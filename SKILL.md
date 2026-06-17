@@ -132,6 +132,43 @@ Do not list every item in the cart — only what was just added. The user can ch
 the website. The runner does not report a delivery slot (the skill never touches checkout or time
 slots), so don't state one.
 
+> **The runner's `added` list is intent, not proof.** It echoes the items the runner *tried*
+> to add; it does not re-check that they actually landed. Its `cart` summary is only an item
+> count and total, not contents. So never tell the user "X is in your cart" based on `added`
+> alone — say "added X" if you want, but if they ask what's *in* the cart, or you need to
+> confirm an add really took effect, use the cart viewer below.
+
+## Viewing the Cart
+
+When the user asks what's in their cart ("what's in my cart?", "show my cart", "did the milk
+get added?"), or when you need to verify that an add actually took effect, run the read-only
+viewer:
+
+```bash
+npx tsx scripts/view-cart.ts
+```
+
+It logs in, reads the cart, maps each item's `productCode` back to the dictionary for a
+human-friendly name and brand, and prints a JSON block between `RESULT_JSON_START` and
+`RESULT_JSON_END`:
+
+```json
+{
+  "items": [
+    { "productCode": "P_4131074", "name": "חלב בקרטון 3% שומן", "brand": "תנובה", "quantity": 1, "itemPrice": 7.35 }
+  ],
+  "itemCount": 1,
+  "total": 7.35
+}
+```
+
+Notes:
+- Cart items only carry a `productCode`, so any item **not** in the dictionary shows `name: null`
+  / `brand: null` — report it by code and note it isn't in the dictionary.
+- This is read-only: it never adds, removes, or touches checkout. Use it freely to confirm state.
+- To list the cart, show one line per item (`name (brand) × quantity — ₪itemPrice`), then the
+  `itemCount` and `total`, and the cart link. Do not state a delivery slot.
+
 ## Skill Layout
 
 The skill is self-contained. Everything it needs lives here; `shufersal-automation` is an
@@ -142,7 +179,8 @@ shufersal-cart-skill/
 ├── SKILL.md                  ← this file
 ├── product-dictionary.json   ← curated products + aliases (the source of truth)
 ├── scripts/
-│   ├── add-to-cart.ts        ← the runner you invoke each request
+│   ├── add-to-cart.ts        ← the runner you invoke to add items
+│   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)
 │   └── build-dictionary.ts   ← scans order history to seed the dictionary
 ├── package.json / tsconfig.json
 └── .env                      ← credentials (gitignored)
