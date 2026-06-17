@@ -4,6 +4,39 @@ A Claude skill for adding grocery products to a [Shufersal](https://www.shufersa
 
 Say things like **"add milk, eggs, and 2 pitas"** and the skill translates that into the correct API calls using the [shufersal-automation](https://github.com/eshaham/shufersal-automation) library.
 
+## Getting Started
+
+Do these in order — **step 3 (your product dictionary) is what the skill needs before it can add anything.**
+
+1. **Install** (Node.js + a local Chrome required — see [Prerequisites](#prerequisites)):
+   ```bash
+   git clone <this-repo>
+   cd shufersal-shop
+   npm install
+   ```
+2. **Add your credentials** — copy the template and fill it in (`.env` is gitignored):
+   ```bash
+   cp .env.example .env   # then edit with your Shufersal username, password, and CHROME_PATH
+   ```
+3. **Build your product dictionary (do this first).** The skill matches what you say against
+   `product-dictionary.json` — a curated list of products *you* buy, with English/Hebrew aliases.
+   It's personal (it reveals your shopping habits), so it's **gitignored and not included** — a fresh
+   clone starts without one. Create it one of two ways:
+   ```bash
+   # Option A — build from your real order history, then curate the draft (recommended):
+   npm run build-dictionary -- 20      # writes dictionary-draft.json from your last 20 orders
+   #   ...then copy/curate entries into product-dictionary.json (add English names, casual terms)
+
+   # Option B — start from the bundled 10-item sample:
+   cp product-dictionary.sample.json product-dictionary.json
+   ```
+   If you skip this, the skill notices the file is missing and prompts you to create it before adding items.
+4. **Use it.** Ask Claude *"add milk and 2 pitas"*, or run a script directly:
+   ```bash
+   npm run add -- "milk" "pita=2"
+   npm run view                        # show current cart (read-only)
+   ```
+
 ## How It Works
 
 1. **You speak naturally** — English, Hebrew, or a mix. "Add apples and shredded cheese" or "תוסיף חלב ופיתה".
@@ -63,14 +96,8 @@ npm install   # re-link the package and refresh the library's own deps
 
 ### Install
 
-```bash
-git clone <this-repo>
-cd shufersal-shop
-npm install
-cp .env.example .env   # then edit .env with your details
-```
-
-`.env` holds your credentials (it is gitignored):
+See [Getting Started](#getting-started) above for the full ordered walkthrough (install →
+credentials → build dictionary → use). `.env` holds your credentials and is gitignored:
 
 ```
 SHUFERSAL_USERNAME=your-username
@@ -110,11 +137,18 @@ Place this directory under your Claude skills location (e.g. a `shufersal-shop` 
 }
 ```
 
+The real `product-dictionary.json` is **personal and gitignored** — it's not committed, so each
+checkout starts without one. The repo ships `product-dictionary.sample.json` (10 items) as a
+tracked, shareable starter and format reference.
+
 ### Building the Dictionary
 
-Run `npm run build-dictionary -- 20` to scan your last 20 orders and generate
-`dictionary-draft.json` (auto-seeded with Hebrew aliases). Then curate it into
-`product-dictionary.json` by adding English names and casual terms.
+Two ways to create your `product-dictionary.json` (see [Getting Started](#getting-started) step 3):
+
+- **From your orders (recommended):** `npm run build-dictionary -- 20` scans your last 20 orders and
+  generates `dictionary-draft.json` (auto-seeded with Hebrew aliases). Then curate it into
+  `product-dictionary.json` by adding English names and casual terms.
+- **From the sample:** `cp product-dictionary.sample.json product-dictionary.json`, then extend it.
 
 ### Adding Products
 
@@ -131,7 +165,8 @@ When the skill can't find a product, add a new entry with:
 | File | Purpose |
 |------|---------|
 | `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart |
-| `product-dictionary.json` | Curated product list with aliases, built from your order history |
+| `product-dictionary.json` | Your curated product list with aliases — **personal, gitignored** (create it on first use) |
+| `product-dictionary.sample.json` | 10-item starter (tracked) — copy to `product-dictionary.json` to begin |
 | `scripts/add-to-cart.ts` | The runner — matches items, adds them, and verifies each add |
 | `scripts/view-cart.ts` | Read-only cart viewer (maps product codes back to dictionary names) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary |

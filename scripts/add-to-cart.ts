@@ -24,6 +24,16 @@ interface DictionaryEntry {
 }
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
+if (!fs.existsSync(dictPath)) {
+  console.error(
+    'No product-dictionary.json found. This file is personal and gitignored, so a fresh ' +
+      'checkout starts without it.\n' +
+      'Create it before adding items, either by:\n' +
+      '  1. npm run build-dictionary -- 20   (scan your order history, then curate the draft), or\n' +
+      '  2. cp product-dictionary.sample.json product-dictionary.json   (start from the 10-item sample).',
+  );
+  process.exit(1);
+}
 const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
 
 // Debug log so we can investigate why an add did/didn't take effect. Lines go to a

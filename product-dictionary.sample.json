@@ -1,0 +1,82 @@
+[
+  {
+    "id": "P_7296073440376",
+    "name": "מארז מלפפונים",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["cucumbers", "מלפפונים", "מלפפון", "cucumber"]
+  },
+  {
+    "id": "P_7296073440413",
+    "name": "פלפל אדום ארוז",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["red pepper", "פלפל אדום", "bell pepper", "פלפל", "red bell pepper"]
+  },
+  {
+    "id": "P_7290018540329",
+    "name": "פיתה פיתה",
+    "brand": "אנג'ל מאפיה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["pita", "פיתה", "פיתות", "angel pita", "אנג'ל פיתה", "pita bread"]
+  },
+  {
+    "id": "P_7296073453635",
+    "name": "גב.עמק 28% מגורדת ארוזה",
+    "brand": "עמק",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["shredded cheese", "גבינה מגורדת", "מגורדת", "emek shredded", "עמק מגורדת", "grated cheese"]
+  },
+  {
+    "id": "P_7296073453444",
+    "name": "גבינה צהובה28% פרוס ארוז",
+    "brand": "עמק",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["sliced cheese", "גבינה פרוסה", "פרוסות גבינה", "yellow cheese sliced", "גבינה צהובה", "עמק פרוס", "sliced yellow cheese"]
+  },
+  {
+    "id": "P_7296073440406",
+    "name": "בצל יבש ארוז",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["onion", "onions", "בצל", "בצל יבש"]
+  },
+  {
+    "id": "P_7296073553274",
+    "name": "טורטיות מקמח חיטה",
+    "brand": "papa tortilla",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["tortillas", "טורטיות", "wraps", "tortilla", "טורטייה"]
+  },
+  {
+    "id": "P_42435",
+    "name": "חלב מפוסטר 1% בקרטון",
+    "brand": "תנובה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["low fat milk", "1% milk", "חלב 1%", "חלב דל שומן", "חלב מפוסטר"]
+  },
+  {
+    "id": "P_7296073484868",
+    "name": "מארז תפוחים פינקליידי",
+    "brand": "פינק ליידי",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["apples", "תפוחים", "pink lady", "פינק ליידי", "תפוחי עץ"]
+  },
+  {
+    "id": "P_7296073472797",
+    "name": "קמח חיטה לבן מנופה",
+    "brand": "מאפית",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["flour", "קמח", "white flour", "קמח לבן", "קמח חיטה", "all purpose flour"]
+  }
+]

@@ -2,3 +2,7 @@ node_modules/
 *.log
 .env
 dictionary-draft.json
+
+# Your real dictionary is personal (reveals your shopping habits) — keep it local.
+# product-dictionary.sample.json is the tracked, shareable starter.
+product-dictionary.json

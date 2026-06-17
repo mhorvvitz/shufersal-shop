@@ -46,7 +46,17 @@ Default quantity is 1 if not specified. Interpret "a", "some", "a pack of" as qu
 
 ### Step 2: Match from the Product Dictionary (FIRST)
 
-Before searching Shufersal's API, check the product dictionary at `product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
+**Precondition — make sure the dictionary exists.** `product-dictionary.json` is personal (it
+reflects the user's own buying habits) and is gitignored, so a fresh checkout starts without it. If
+the file is missing (the runner exits with a "No product-dictionary.json found" message), don't try
+to add items — stop and help the user create it first:
+
+> "You don't have a product dictionary yet — it's what lets me match 'milk' to the exact product you
+> buy. I can build one from your recent Shufersal orders (`npm run build-dictionary -- 20`, then we
+> curate it together), or you can start from the bundled 10-item sample
+> (`product-dictionary.sample.json`). Which would you prefer?"
+
+Once it exists, check the product dictionary at `product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
 
 Each entry looks like:
 ```json
@@ -191,7 +201,8 @@ library, which is vendored under `vendor/` (MIT) and resolved to its TypeScript 
 ```
 shufersal-shop/
 ├── SKILL.md                  ← this file
-├── product-dictionary.json   ← curated products + aliases (the source of truth)
+├── product-dictionary.json   ← curated products + aliases (the source of truth) — personal, gitignored
+├── product-dictionary.sample.json ← 10-item starter (tracked); copy to product-dictionary.json to begin
 ├── scripts/
 │   ├── add-to-cart.ts        ← the runner you invoke to add items
 │   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)

@@ -9,7 +9,10 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // Cart items only carry a productCode, so map codes back to dictionary names/brands.
 interface DictionaryEntry { id: string; name: string; brand: string; }
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
-const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
+// The cart can still be listed without a dictionary; codes just won't map to names.
+const dictionary: DictionaryEntry[] = fs.existsSync(dictPath)
+  ? JSON.parse(fs.readFileSync(dictPath, 'utf-8'))
+  : [];
 const byCode = new Map(dictionary.map((e) => [e.id, e]));
 
 const USERNAME = process.env['SHUFERSAL_USERNAME'];
