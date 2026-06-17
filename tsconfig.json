@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "importHelpers": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "types": ["node", "jest"],
+    "baseUrl": "src",
+    "paths": {
+      "~/*": ["./*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "jest.config.js"]
+}
