@@ -26,6 +26,22 @@ interface DictionaryEntry {
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
 const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
 
+// Debug log so we can investigate why an add did/didn't take effect. Lines go to a
+// gitignored logs/add-to-cart.log (appended) and to stderr — never stdout, so the
+// RESULT_JSON block stays clean and parseable.
+const logFile = path.join(__dirname, '..', 'logs', 'add-to-cart.log');
+function log(message: string, data?: unknown): void {
+  const suffix = data === undefined ? '' : ' ' + JSON.stringify(data);
+  const line = `[${new Date().toISOString()}] ${message}${suffix}`;
+  process.stderr.write(line + '\n');
+  try {
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    fs.appendFileSync(logFile, line + '\n');
+  } catch (err) {
+    process.stderr.write(`(failed to write log file: ${String(err)})\n`);
+  }
+}
+
 function findProducts(query: string): DictionaryEntry[] {
   const q = query.toLowerCase().trim();
   return dictionary.filter((entry) => entry.aliases.some((alias) => alias.toLowerCase() === q));
@@ -94,30 +110,111 @@ async function main() {
     return;
   }
 
+  log('Run started', {
+    matched: matched.map((m) => ({ code: m.entry.id, name: m.entry.name, qty: m.qty })),
+    unmatched,
+    ambiguous: ambiguous.map((a) => a.query),
+  });
+
   const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
   const session = await bot.createSession(USERNAME!, PASSWORD!);
 
   try {
-    await session.addToCart(
-      matched.map((m) => ({
-        productCode: m.entry.id,
-        quantity: m.qty,
-        sellingMethod: m.entry.sellingMethod as any,
-      })),
-    );
+    // Snapshot the cart before adding so we can tell what each add actually changed.
+    const before = await session.getCartItems();
+    const beforeQty = new Map(before.map((c) => [c.productCode, c.quantity]));
+    log('Cart before add', {
+      itemCount: before.length,
+      items: before.map((c) => ({ code: c.productCode, qty: c.quantity })),
+    });
 
+    const payload = matched.map((m) => ({
+      productCode: m.entry.id,
+      quantity: m.qty,
+      sellingMethod: m.entry.sellingMethod as any,
+    }));
+    log('Calling addToCart with payload', payload);
+
+    try {
+      await session.addToCart(payload);
+      log('addToCart returned without throwing (note: the library returns void and does not surface the API response)');
+    } catch (err) {
+      log('addToCart threw', { error: String(err) });
+      throw err;
+    }
+
+    // Snapshot again and verify each item actually landed. addToCart returns void, so
+    // a silent server-side rejection only shows up as the cart being unchanged.
     const cart = await session.getCartItems();
+    const afterQty = new Map(cart.map((c) => [c.productCode, c.quantity]));
+    log('Cart after add', {
+      itemCount: cart.length,
+      items: cart.map((c) => ({ code: c.productCode, qty: c.quantity })),
+    });
+
+    const verification: unknown[] = [];
+    for (const m of matched) {
+      const code = m.entry.id;
+      const had = beforeQty.get(code) ?? 0;
+      const now = afterQty.get(code) ?? 0;
+      const entry: Record<string, unknown> = {
+        name: m.entry.name,
+        brand: m.entry.brand,
+        productCode: code,
+        requestedQty: m.qty,
+        beforeQty: had,
+        afterQty: now,
+        verified: now > 0, // present in the cart afterward
+        changed: now !== had, // this run actually moved the quantity
+      };
+
+      // If it isn't in the cart afterward, look the product up to explain why
+      // (out of stock, not purchasable, or a selling-method mismatch).
+      if (now === 0) {
+        try {
+          const product = await session.getProductByCode(code);
+          if (!product) {
+            entry['reason'] = 'product code not found on Shufersal';
+          } else {
+            entry['reason'] = !product.purchasable
+              ? 'not purchasable'
+              : !product.inStock
+                ? 'out of stock'
+                : product.sellingMethod !== (m.entry.sellingMethod as any)
+                  ? `selling-method mismatch (dictionary=${m.entry.sellingMethod}, live=${product.sellingMethod})`
+                  : 'add silently rejected by Shufersal despite product being available';
+            entry['product'] = {
+              inStock: product.inStock,
+              purchasable: product.purchasable,
+              sellingMethod: product.sellingMethod,
+              price: product.price,
+            };
+          }
+        } catch (err) {
+          entry['reason'] = `lookup failed: ${String(err)}`;
+        }
+        log('Item NOT verified in cart', entry);
+      } else {
+        log('Item verified in cart', entry);
+      }
+      verification.push(entry);
+    }
+
     const total = cart.reduce((sum, c) => sum + (c.itemPrice ?? 0), 0);
 
+    // `added` echoes what was attempted (intent). `verification` is the ground truth —
+    // whether each item is actually in the cart afterward, with a reason when it isn't.
     result['added'] = matched.map((m) => ({
       name: m.entry.name,
       brand: m.entry.brand,
       qty: m.qty,
     }));
+    result['verification'] = verification;
     result['cart'] = {
       itemCount: cart.length,
       total: Number(total.toFixed(2)),
     };
+    log('Run finished', { cart: result['cart'] });
 
     console.log('RESULT_JSON_START');
     console.log(JSON.stringify(result, null, 2));

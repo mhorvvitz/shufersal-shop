@@ -97,6 +97,10 @@ The runner prints a block between `RESULT_JSON_START` and `RESULT_JSON_END`:
   "added": [{ "name": "חלב בקרטון 3% שומן", "brand": "תנובה", "qty": 1 }],
   "unmatched": ["bread"],
   "ambiguous": [{ "query": "cheese", "options": [ ... ] }],
+  "verification": [
+    { "name": "חלב בקרטון 3% שומן", "productCode": "P_4131074", "requestedQty": 1,
+      "beforeQty": 0, "afterQty": 1, "verified": true, "changed": true }
+  ],
   "cart": { "itemCount": 12, "total": 187.5 }
 }
 ```
@@ -104,6 +108,15 @@ The runner prints a block between `RESULT_JSON_START` and `RESULT_JSON_END`:
 Parse that JSON to write your reply. `unmatched` items aren't in the dictionary (tell the user
 to add them manually); `ambiguous` items matched more than one entry (ask which they meant —
 the runner does not add ambiguous items).
+
+`verification` is the **ground truth** for whether each item actually landed: the runner snapshots
+the cart before and after the add and checks each item. `verified: true` means it's in the cart
+now; `changed` says whether this run moved the quantity. If `verified` is `false`, the entry
+carries a `reason` (e.g. out of stock, not purchasable, selling-method mismatch, code not found,
+or "add silently rejected"). **Report based on `verification`, not `added`** — and if anything
+failed, tell the user the reason. Every run also appends a detailed trace to
+`logs/add-to-cart.log` (payload sent, cart before/after, per-item verdict); read it when you need
+to dig into why an add didn't take effect.
 
 ### Step 4: Confirm
 
@@ -182,6 +195,8 @@ shufersal-cart-skill/
 │   ├── add-to-cart.ts        ← the runner you invoke to add items
 │   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)
 │   └── build-dictionary.ts   ← scans order history to seed the dictionary
+├── logs/
+│   └── add-to-cart.log       ← per-run trace from the add runner (gitignored)
 ├── package.json / tsconfig.json
 └── .env                      ← credentials (gitignored)
 ```
@@ -192,8 +207,10 @@ The runner (`scripts/add-to-cart.ts`):
 2. Matches each CLI argument against aliases (exact, case-insensitive)
 3. Separates results into matched / unmatched / ambiguous
 4. Creates a bot (`headless: true`) and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
-5. Adds matched items via `session.addToCart()`, then reads the cart back
-6. Prints the JSON result block and closes the session
+5. Snapshots the cart, adds matched items via `session.addToCart()`, snapshots again, and
+   verifies each item actually landed (looking up failures via `getProductByCode` for a reason)
+6. Prints the JSON result block (including `verification`), appends a trace to
+   `logs/add-to-cart.log`, and closes the session
 
 You normally never edit the runner — just call it with the right arguments. If you find yourself
 wanting to write a new one-off script to add items, stop: run this instead.
