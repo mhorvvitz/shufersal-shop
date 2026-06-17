@@ -31,6 +31,31 @@ registry access required. (It's vendored rather than installed as a package beca
 consumed as TypeScript source via an internal `~/*` path alias, which only resolves when the
 library is treated as first-party source.)
 
+### The vendored library (git subtree)
+
+`vendor/shufersal-automation` is a **git subtree** tracking
+[eshaham/shufersal-automation](https://github.com/eshaham/shufersal-automation) on `main`, imported
+with `--squash` (upstream history is collapsed into one commit per sync, not interleaved into ours).
+
+**Golden rule: never edit anything under `vendor/shufersal-automation/`.** Local edits there turn
+every upstream sync into a merge conflict. Everything the skill needs to adapt the library lives
+*outside* the folder and should stay there:
+
+- `tsconfig.json` — the `shufersal-automation` and `~/*` path aliases that resolve the library to its source
+- `package.json` — the `file:vendor/shufersal-automation` dependency
+- `.npmrc` — `install-links=false`, so `npm install` symlinks the vendored package instead of copying it
+
+The subtree pulls the upstream repo in full (its `.github/`, `docs/`, configs, `package-lock.json`,
+etc.), but only `src/` is ever used — `tsconfig.json` points the alias at `vendor/shufersal-automation/src/index.ts`.
+
+**Pull upstream updates** (requires an `upstream` remote — add once with
+`git remote add upstream https://github.com/eshaham/shufersal-automation.git`):
+
+```bash
+git subtree pull --prefix=vendor/shufersal-automation upstream main --squash
+npm install   # re-link the package and refresh the library's own deps
+```
+
 ### Prerequisites
 
 - Node.js
@@ -111,6 +136,6 @@ When the skill can't find a product, add a new entry with:
 | `scripts/view-cart.ts` | Read-only cart viewer (maps product codes back to dictionary names) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary |
 | `logs/add-to-cart.log` | Per-run trace from the runner, for debugging adds (gitignored) |
-| `vendor/shufersal-automation/` | Bundled library source (MIT) — the only external dependency |
+| `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree of [eshaham/shufersal-automation](https://github.com/eshaham/shufersal-automation) — the only external dependency; don't edit (see [Setup](#the-vendored-library-git-subtree)) |
 | `evals/` | Test cases for skill evaluation |
 | `.env.example` | Template for credentials; copy to `.env` |
