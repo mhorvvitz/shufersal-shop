@@ -1,0 +1,29 @@
+{
+  "skill_name": "shufersal-cart",
+  "evals": [
+    {
+      "id": 0,
+      "name": "simple-add",
+      "prompt": "add 2 milks and bread to my cart",
+      "expected_output": "Searches for milk and bread, shows results with prices, adds 2 units of milk and 1 bread to cart, confirms what was added",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "hebrew-mixed",
+      "prompt": "תוסיף 3 יוגורטים, ביצים, ו-2 חלב",
+      "expected_output": "Understands Hebrew, searches for yogurt/eggs/milk, adds correct quantities (3 yogurt, 1 eggs, 2 milk), confirms in a summary",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "ambiguous-cheese",
+      "prompt": "add some cheese",
+      "expected_output": "Searches for cheese, finds multiple types, presents options to user rather than guessing, waits for user to choose",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}

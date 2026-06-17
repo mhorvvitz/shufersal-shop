@@ -1,0 +1,314 @@
+[
+  {
+    "id": "P_4131074",
+    "name": "חלב בקרטון 3% שומן",
+    "brand": "תנובה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["milk", "חלב", "חלב 3%", "tnuva milk", "whole milk", "חלב תנובה"]
+  },
+  {
+    "id": "P_42435",
+    "name": "חלב מפוסטר 1% בקרטון",
+    "brand": "תנובה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["low fat milk", "1% milk", "חלב 1%", "חלב דל שומן", "חלב מפוסטר"]
+  },
+  {
+    "id": "P_7296073484868",
+    "name": "מארז תפוחים פינקליידי",
+    "brand": "פינק ליידי",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["apples", "תפוחים", "pink lady", "פינק ליידי", "תפוחי עץ"]
+  },
+  {
+    "id": "P_7296073453635",
+    "name": "גב.עמק 28% מגורדת ארוזה",
+    "brand": "עמק",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["shredded cheese", "גבינה מגורדת", "מגורדת", "emek shredded", "עמק מגורדת", "grated cheese"]
+  },
+  {
+    "id": "P_7296073453444",
+    "name": "גבינה צהובה28% פרוס ארוז",
+    "brand": "עמק",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["sliced cheese", "גבינה פרוסה", "פרוסות גבינה", "yellow cheese sliced", "גבינה צהובה", "עמק פרוס", "sliced yellow cheese"]
+  },
+  {
+    "id": "P_4122683",
+    "name": "אצבעות גבינה צהובה",
+    "brand": "עמק",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["cheese sticks", "אצבעות גבינה", "cheese fingers", "עמק אצבעות"]
+  },
+  {
+    "id": "P_7296073453123",
+    "name": "גבינת שמנת 30% שומן",
+    "brand": "מחלבות גד",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["cream cheese", "גבינת שמנת", "שמנת גד", "גד שמנת"]
+  },
+  {
+    "id": "P_7290115678222",
+    "name": "דנונה יווני מארז",
+    "brand": "דנונה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["greek yogurt", "יוגורט יווני", "דנונה יווני", "danone greek", "yogurt", "יוגורט"]
+  },
+  {
+    "id": "P_7290018540329",
+    "name": "פיתה פיתה",
+    "brand": "אנג'ל מאפיה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["pita", "פיתה", "פיתות", "angel pita", "אנג'ל פיתה", "pita bread"]
+  },
+  {
+    "id": "P_7296073440376",
+    "name": "מארז מלפפונים",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["cucumbers", "מלפפונים", "מלפפון", "cucumber"]
+  },
+  {
+    "id": "P_7296073440413",
+    "name": "פלפל אדום ארוז",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["red pepper", "פלפל אדום", "bell pepper", "פלפל"]
+  },
+  {
+    "id": "P_7296073440406",
+    "name": "בצל יבש ארוז",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["onion", "onions", "בצל", "בצל יבש"]
+  },
+  {
+    "id": "P_7290012019265",
+    "name": "רסק תפו\"ע ללא תוספת סוכר",
+    "brand": "תומר",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["applesauce", "רסק תפוחים", "רסק תפוח", "apple puree", "רסק תפו\"ע"]
+  },
+  {
+    "id": "P_7296073553274",
+    "name": "טורטיות מקמח חיטה",
+    "brand": "papa tortilla",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["tortillas", "טורטיות", "wraps", "tortilla", "טורטייה"]
+  },
+  {
+    "id": "P_1201589",
+    "name": "ביצי משק טריות L",
+    "brand": "לסר",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["eggs", "ביצים", "ביצי משק", "egg carton", "ביצה"]
+  },
+  {
+    "id": "P_208428",
+    "name": "חומוס שלם יכין",
+    "brand": "יכין",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["chickpeas", "חומוס", "hummus beans", "חומוס שלם", "canned chickpeas"]
+  },
+  {
+    "id": "P_7296073472797",
+    "name": "קמח חיטה לבן מנופה",
+    "brand": "מאפית",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["flour", "קמח", "white flour", "קמח לבן", "קמח חיטה", "all purpose flour"]
+  },
+  {
+    "id": "P_7296073440468",
+    "name": "בטטות ארוזות",
+    "brand": "קטיף",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["sweet potato", "בטטה", "בטטות", "sweet potatoes"]
+  },
+  {
+    "id": "P_5029053527581",
+    "name": "תח.ספיגה לילה בנות4-7",
+    "brand": "האגיס",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["night diapers", "תחתוני ספיגה", "האגיס לילה", "huggies night", "pull ups night"]
+  },
+  {
+    "id": "P_4127329",
+    "name": "קוטג' 5% שומן",
+    "brand": "תנובה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["cottage cheese", "קוטג'", "cottage", "גבינת קוטג'", "tnuva cottage"]
+  },
+  {
+    "id": "P_7296073495840",
+    "name": "כרובית ארוזה",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["cauliflower", "כרובית", "קרנביט"]
+  },
+  {
+    "id": "P_7290111344206",
+    "name": "מגבונים האגיס נטורל קר",
+    "brand": "האגיס",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["wipes", "מגבונים", "baby wipes", "huggies wipes", "מגבוני האגיס"]
+  },
+  {
+    "id": "P_7296073753100",
+    "name": "תפוח אדמה אדום ארוז",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["potatoes", "תפוחי אדמה", "תפו\"א", "potato", "red potatoes"]
+  },
+  {
+    "id": "P_7296073132479",
+    "name": "לבבות דקל שלמים",
+    "brand": "בית יהודה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["hearts of palm", "לבבות דקל", "palm hearts", "דקלים"]
+  },
+  {
+    "id": "P_7296073734185",
+    "name": "פטריות שמפניון-בודד",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["mushrooms", "פטריות", "champignon", "שמפניון"]
+  },
+  {
+    "id": "P_8076809513395",
+    "name": "רוטב עגבניות ברילה",
+    "brand": "ברילה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["tomato sauce", "רוטב עגבניות", "barilla sauce", "ברילה רוטב", "pasta sauce"]
+  },
+  {
+    "id": "P_65090",
+    "name": "מיני קרוטונים מתובלים",
+    "brand": "אסם",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["croutons", "קרוטונים", "שקיקי קרוטונים"]
+  },
+  {
+    "id": "P_7296073592884",
+    "name": "חסה לאליק צבעוני הידרופו",
+    "brand": "ירוקים",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["lettuce", "חסה", "salad greens", "סלט ירוק"]
+  },
+  {
+    "id": "P_8076800195057",
+    "name": "ספגטי מס' 5 ברילה",
+    "brand": "ברילה",
+    "typicalQuantity": 2,
+    "sellingMethod": "UNIT",
+    "aliases": ["spaghetti", "ספגטי", "barilla spaghetti", "ברילה ספגטי", "pasta"]
+  },
+  {
+    "id": "P_114",
+    "name": "חציל",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["eggplant", "חציל", "חצילים", "aubergine"]
+  },
+  {
+    "id": "P_965253",
+    "name": "אשכול בננה",
+    "brand": "קטיף",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["bananas", "בננה", "בננות", "banana"]
+  },
+  {
+    "id": "P_99941",
+    "name": "מארז גזר מובחר אורגני",
+    "brand": "גרין",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["carrots", "גזר", "organic carrots", "גזר אורגני"]
+  },
+  {
+    "id": "P_197463",
+    "name": "האגיס פרידום דריי 4+",
+    "brand": "האגיס",
+    "typicalQuantity": 3,
+    "sellingMethod": "UNIT",
+    "aliases": ["diapers", "חיתולים", "huggies", "האגיס", "pull ups", "תחתוני ספיגה"]
+  },
+  {
+    "id": "P_9811896",
+    "name": "פרגיות עוף טרי ארוז",
+    "brand": "כללי",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["chicken thighs", "פרגיות", "chicken", "עוף", "פרגית"]
+  },
+  {
+    "id": "P_243566",
+    "name": "שמן קנולה+נוגדי חימצון",
+    "brand": "עץ הזית",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["canola oil", "שמן קנולה", "cooking oil", "שמן לטיגון"]
+  },
+  {
+    "id": "P_7290014095960",
+    "name": "שיבולת שועל עבה",
+    "brand": "שקדיה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["oats", "שיבולת שועל", "oatmeal", "קוואקר", "דייסה"]
+  },
+  {
+    "id": "P_611745285685",
+    "name": "מארז אבוקדו  בשל",
+    "brand": "מור בריאות",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["avocado", "אבוקדו", "avocados"]
+  },
+  {
+    "id": "P_7296073179863",
+    "name": "דבש טבעי לחיץ",
+    "brand": "שדה יהודה",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["honey", "דבש", "squeeze honey", "דבש טבעי"]
+  },
+  {
+    "id": "P_3643004",
+    "name": "אורז בסמטי קלאסי",
+    "brand": "סוגת",
+    "typicalQuantity": 1,
+    "sellingMethod": "UNIT",
+    "aliases": ["rice", "אורז", "basmati", "בסמטי", "אורז בסמטי"]
+  }
+]
