@@ -72,20 +72,19 @@ This is important because Shufersal has thousands of products and a search for "
 
 ### Step 3: Run the Cart Runner
 
-**Do not write a new script for each request.** There is one reusable runner at
-`shufersal-automation/src/example/add-to-cart.ts`. It loads the dictionary, performs the
-alias matching described above, adds matched items to the cart, and prints a JSON result.
-Your job is just to translate the parsed request into arguments and run it.
+**Do not write a new script for each request.** The skill ships with one reusable runner at
+`scripts/add-to-cart.ts`. It loads the dictionary, performs the alias matching described above,
+adds matched items to the cart, and prints a JSON result. Your job is just to translate the
+parsed request into arguments and run it.
 
 Each argument is one requested item, in the form `alias` or `alias=qty` (quantity separated
 with `=` so Hebrew names with spaces stay intact). Omit `=qty` to use the dictionary's
 `typicalQuantity`.
 
-Run it from the example directory:
+Run it from the skill directory:
 
 ```bash
-cd shufersal-automation/src/example
-npx tsx add-to-cart.ts "milk" "pita=3" "eggs" "shredded cheese"
+npx tsx scripts/add-to-cart.ts "milk" "pita=3" "eggs" "shredded cheese"
 ```
 
 The runner prints a block between `RESULT_JSON_START` and `RESULT_JSON_END`:
@@ -107,9 +106,9 @@ the runner does not add ambiguous items).
 
 After adding, show a concise summary:
 
-1. **What was added** — list items just added with quantities (one line each)
-2. **Not found** — list any items that weren't in the dictionary
-3. **Cart summary** — total number of items in cart, total cost, and scheduled delivery time (if available)
+1. **What was added** — list items just added with quantities (one line each), from `added`
+2. **Not found** — list `unmatched` items (not in the dictionary) and `ambiguous` items (ask which they meant)
+3. **Cart summary** — `cart.itemCount` and `cart.total` from the result
 4. **Link** — include the Shufersal cart URL: https://www.shufersal.co.il/online/he/checkout
 
 Example response:
@@ -122,33 +121,56 @@ Added 3 items:
 Not in dictionary:
   ✗ bread — add it manually or tell me the מק"ט
 
-Cart: 12 items | ₪187.50 | Delivery: Tuesday 10:00-12:00
+Cart: 12 items | ₪187.50
 🛒 https://www.shufersal.co.il/online/he/checkout
 ```
 
-Do not list every item in the cart — only what was just added. The user can check the full cart on the website.
+Do not list every item in the cart — only what was just added. The user can check the full cart on
+the website. The runner does not report a delivery slot (the skill never touches checkout or time
+slots), so don't state one.
 
-## The Runner Script
+## Skill Layout
 
-All cart additions go through the single reusable runner:
-`shufersal-automation/src/example/add-to-cart.ts`. It:
+The skill is self-contained. Everything it needs lives here; `shufersal-automation` is an
+external dependency (declared in `package.json`, resolved to the library's source).
 
-1. Loads the product dictionary from `shufersal-cart-skill/product-dictionary.json`
-2. Matches each CLI argument against dictionary aliases (exact, case-insensitive)
+```
+shufersal-cart-skill/
+├── SKILL.md                  ← this file
+├── product-dictionary.json   ← curated products + aliases (the source of truth)
+├── scripts/
+│   ├── add-to-cart.ts        ← the runner you invoke each request
+│   └── build-dictionary.ts   ← scans order history to seed the dictionary
+├── package.json / tsconfig.json
+└── .env                      ← credentials (gitignored)
+```
+
+The runner (`scripts/add-to-cart.ts`):
+
+1. Loads `product-dictionary.json`
+2. Matches each CLI argument against aliases (exact, case-insensitive)
 3. Separates results into matched / unmatched / ambiguous
-4. Creates a bot (`headless: true`) and session from env vars (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
+4. Creates a bot (`headless: true`) and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
 5. Adds matched items via `session.addToCart()`, then reads the cart back
 6. Prints the JSON result block and closes the session
 
-You normally never edit this file — just call it with the right arguments. Only modify it if the
-result format or matching behavior itself needs to change. If you find yourself wanting to write a
-new one-off script to add items, stop: run this instead.
+You normally never edit the runner — just call it with the right arguments. If you find yourself
+wanting to write a new one-off script to add items, stop: run this instead.
 
 ## Managing the Dictionary
 
 ### Rebuilding from Order History
 
-To refresh the dictionary from recent orders, run the `build-cheatsheet.ts` script which scans the last 10 orders and outputs a raw `cheatsheet.json`. Then curate it into `product-dictionary.json` by adding human-friendly aliases.
+To seed the dictionary from recent orders, run the builder (scans the last 20 orders by default;
+pass a number to change it):
+
+```bash
+npx tsx scripts/build-dictionary.ts 20
+```
+
+It writes `dictionary-draft.json` with one entry per product and auto-seeded Hebrew aliases.
+Curate those into `product-dictionary.json` by hand — add English names, Hebrew shorthand, and
+casual terms to each entry's `aliases` array. The draft is a starting point, not the final file.
 
 ### Adding New Products
 

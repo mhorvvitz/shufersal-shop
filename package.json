@@ -1,0 +1,20 @@
+{
+  "name": "shufersal-cart-skill",
+  "version": "1.0.0",
+  "description": "A self-contained Claude skill for natural-language grocery shopping on Shufersal.",
+  "private": true,
+  "scripts": {
+    "add": "tsx scripts/add-to-cart.ts",
+    "build-dictionary": "tsx scripts/build-dictionary.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "shufersal-automation": "file:../shufersal-automation"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.2"
+  }
+}

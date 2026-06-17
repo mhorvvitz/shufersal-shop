@@ -23,10 +23,35 @@ Checkout must be done manually on the Shufersal website.
 
 ## Setup
 
+The skill is self-contained: it owns its scripts, its dictionary, and its config.
+[shufersal-automation](https://github.com/eshaham/shufersal-automation) is an external
+dependency, expected as a sibling directory (`../shufersal-automation`).
+
 ### Prerequisites
 
-- [shufersal-automation](https://github.com/eshaham/shufersal-automation) installed and configured
-- Environment variables: `SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`
+- Node.js, and the `shufersal-automation` library checked out at `../shufersal-automation`
+- A local Chrome installation
+
+### Install
+
+```bash
+npm install
+```
+
+Then create a `.env` in this directory with your credentials:
+
+```
+SHUFERSAL_USERNAME=your-username
+SHUFERSAL_PASSWORD=your-password
+CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+```
+
+### Scripts
+
+| Command | What it does |
+|---------|--------------|
+| `npx tsx scripts/add-to-cart.ts "milk" "pita=3"` | Add items to cart (the runner) |
+| `npx tsx scripts/build-dictionary.ts 20` | Scan the last 20 orders into `dictionary-draft.json` to seed the dictionary |
 
 ### Install as a Claude Skill
 
@@ -49,7 +74,9 @@ Place this directory where your Claude skills are configured, or point your skil
 
 ### Building the Dictionary
 
-Run `build-cheatsheet.ts` in the shufersal-automation repo to scan your last N orders and generate a raw product list. Then curate it into `product-dictionary.json` by adding aliases.
+Run `npx tsx scripts/build-dictionary.ts 20` to scan your last 20 orders and generate
+`dictionary-draft.json` (auto-seeded with Hebrew aliases). Then curate it into
+`product-dictionary.json` by adding English names and casual terms.
 
 ### Adding Products
 
@@ -67,4 +94,6 @@ When the skill can't find a product, add a new entry with:
 |------|---------|
 | `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart |
 | `product-dictionary.json` | Curated product list with aliases, built from your order history |
+| `scripts/add-to-cart.ts` | The runner — matches items and adds them to the cart |
+| `scripts/build-dictionary.ts` | Scans order history to seed the dictionary |
 | `evals/` | Test cases for skill evaluation |
