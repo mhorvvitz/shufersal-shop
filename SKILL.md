@@ -86,14 +86,28 @@ await session.addToCart([
 
 ### Step 4: Confirm
 
-After adding, show a summary of what was added:
+After adding, show a concise summary:
 
-| Item | Brand | Qty |
-|------|-------|-----|
-| חלב בקרטון 3% שומן | תנובה | 1 |
-| פיתה פיתה | אנג'ל מאפיה | 2 |
+1. **What was added** — list items just added with quantities (one line each)
+2. **Not found** — list any items that weren't in the dictionary
+3. **Cart summary** — total number of items in cart, total cost, and scheduled delivery time (if available)
+4. **Link** — include the Shufersal cart URL: https://www.shufersal.co.il/online/he/checkout
 
-If any items were not found in the dictionary, list them separately so the user knows what to handle manually.
+Example response:
+```
+Added 3 items:
+  ✓ חלב בקרטון 3% שומן (תנובה) × 1
+  ✓ פיתה פיתה (אנג'ל מאפיה) × 2
+  ✓ ביצי משק טריות L (לסר) × 1
+
+Not in dictionary:
+  ✗ bread — add it manually or tell me the מק"ט
+
+Cart: 12 items | ₪187.50 | Delivery: Tuesday 10:00-12:00
+🛒 https://www.shufersal.co.il/online/he/checkout
+```
+
+Do not list every item in the cart — only what was just added. The user can check the full cart on the website.
 
 ## Writing the Script
 
@@ -101,7 +115,7 @@ Write a TypeScript script in `shufersal-automation/src/example/` that:
 
 1. Reads the product dictionary from `shufersal-cart-skill/product-dictionary.json`
 2. Matches the user's requested items against dictionary aliases
-3. Creates a bot and session using env vars (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
+3. Creates a bot (headless: true) and session using env vars (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
 4. Adds matched items to cart via `session.addToCart()`
 5. Reports results and any unmatched items
 6. Closes the session
