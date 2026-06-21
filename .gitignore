@@ -3,6 +3,9 @@ node_modules/
 .env
 dictionary-draft.json
 
+# Personal scan cache for the suggester (like the dictionary, reveals habits).
+order-stats.json
+
 # Your real dictionary is personal (reveals your shopping habits) — keep it local.
 # product-dictionary.sample.json is the tracked, shareable starter.
 product-dictionary.json

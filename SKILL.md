@@ -192,6 +192,60 @@ Notes:
 - To list the cart, show one line per item (`name (brand) × quantity — ₪itemPrice`), then the
   `itemCount` and `total`, and the cart link. Do not state a delivery slot.
 
+## Suggesting What to Buy
+
+When the user asks what to restock ("what should I buy?", "what am I out of?", "suggest a
+shop"), run the suggester:
+
+```bash
+npx tsx scripts/suggest.ts            # uses the cached scan
+npx tsx scripts/suggest.ts --refresh  # re-scans order history first (one login)
+npx tsx scripts/suggest.ts 10         # cap to 10 suggestions (default = your median order size)
+```
+
+It ranks items that are **due** by each item's purchase cadence (frequency × how overdue it
+is), considering only items bought within the last 90 days. It reads a cached scan
+(`order-stats.json`); if the cache is missing it will tell you to run `--refresh`, and if it's
+stale (>14 days) it still suggests but sets `cache.stale=true` (offer to refresh). Items flagged
+`unavailable` are never suggested. Present the results conversationally — e.g. "you're due for
+fusilli (you buy it monthly, last 59 days ago)" — then offer to add a set via the add runner.
+
+**"What *else* should I add to my cart?" — be cart-aware.** When the user asks what else /
+what's missing relative to their current cart, first read the cart, then suggest, then exclude
+what's already there:
+
+1. Run `npx tsx scripts/view-cart.ts` and collect the `productCode`s currently in the cart.
+2. Run `npx tsx scripts/suggest.ts`.
+3. **Drop any suggestion whose `code` is already in the cart**, then present the rest. This way
+   you only ever recommend things they haven't already added.
+
+(The suggester itself stays cache-only and doesn't read the cart — you do this cross-reference,
+so a plain "what should I buy?" stays instant and login-free.)
+
+## Handling Unavailable Items
+
+The add runner's result includes an **`unavailable`** array — matched items whose product code
+Shufersal keeps rejecting (it isolates them by retrying and bisecting). Such an item is
+**already flagged** `"unavailable": { reason, since }` in `product-dictionary.json` and will no
+longer be suggested. When `unavailable` is non-empty (or a `verification` entry shows an add was
+rejected):
+
+1. Tell the user plainly: the saved product for "<item>" looks discontinued/unavailable
+   (`reason`), so it couldn't be added.
+2. **Offer to find a replacement** — don't guess. With their go-ahead, search Shufersal:
+
+   ```bash
+   npx tsx scripts/search.ts "<hebrew or english name>"
+   ```
+
+   It prints candidates (`code`, `name`, `brand`, `price`, `inStock`, `purchasable`). Show the
+   in-stock, purchasable options and let the user pick.
+3. On their pick, update that dictionary entry: set `id` to the new מק"ט, refresh `name`/`brand`
+   if needed, and **remove the `unavailable` flag**. Then retry the add.
+
+Never auto-swap a replacement — confirm the choice with the user first, consistent with the
+no-guessing rule.
+
 ## Skill Layout
 
 The skill is self-contained. Everything it needs lives here, including the `shufersal-automation`
@@ -206,7 +260,11 @@ shufersal-shop/
 ├── scripts/
 │   ├── add-to-cart.ts        ← the runner you invoke to add items
 │   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)
-│   └── build-dictionary.ts   ← scans order history to seed the dictionary
+│   ├── suggest.ts            ← cadence-based "what should I restock" suggestions
+│   ├── search.ts             ← read-only product search (find a replacement for a bad item)
+│   ├── build-dictionary.ts   ← scans order history to seed the dictionary
+│   └── lib/                  ← shared helpers (order-stats, dictionary, chunk)
+├── order-stats.json          ← suggester cache (personal, gitignored; built by `suggest --refresh`)
 ├── vendor/
 │   └── shufersal-automation/ ← bundled library source (MIT) — the only external dependency
 ├── logs/
@@ -222,10 +280,12 @@ The runner (`scripts/add-to-cart.ts`):
 2. Matches each CLI argument against aliases (exact, case-insensitive)
 3. Separates results into matched / unmatched / ambiguous
 4. Creates a bot (`headless: true`) and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
-5. Snapshots the cart, adds matched items via `session.addToCart()`, snapshots again, and
-   verifies each item actually landed (looking up failures via `getProductByCode` for a reason)
-6. Prints the JSON result block (including `verification`), appends a trace to
-   `logs/add-to-cart.log`, and closes the session
+5. Snapshots the cart, adds matched items via `session.addToCart()` **in chunks** (retrying
+   and bisecting a failing chunk to isolate a bad item), snapshots again, and verifies each
+   item actually landed (looking up failures via `getProductByCode` for a reason)
+6. Prints the JSON result block (including `verification` and an `unavailable` array — see
+   "Handling Unavailable Items"), appends a trace to `logs/add-to-cart.log`, and closes the
+   session. An item isolated as genuinely bad is flagged `unavailable` in the dictionary.
 
 You normally never edit the runner — just call it with the right arguments. If you find yourself
 wanting to write a new one-off script to add items, stop: run this instead.

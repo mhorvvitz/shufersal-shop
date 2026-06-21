@@ -1,7 +1,26 @@
 import { ShufersalBot } from 'shufersal-automation';
+import type { CartItemToAdd } from 'shufersal-automation';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { chunk, bisect } from './lib/chunk';
+import {
+  readDictionary,
+  flagUnavailable,
+  summarizeFailure,
+  isUnavailable,
+  type DictionaryEntry,
+} from './lib/dictionary';
+
+// Bulk adds go through Shufersal's POST /cart/addGrid, which 500s on large
+// payloads and 405s under rate-limiting. We therefore add in small chunks,
+// pausing between them, and retry/bisect a failing chunk to isolate a bad item.
+const MAX_CHUNK = 8; // max items per addToCart call — easy to tune
+const CHUNK_DELAY_MS = 1500; // pause between chunks to reduce throttling
+const CHUNK_RETRIES = 2; // extra attempts for a failing chunk before bisecting
+const RETRY_BACKOFF_MS = 1500; // base backoff between chunk retries (grows linearly)
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -12,15 +31,6 @@ const CHROME_PATH = process.env['CHROME_PATH'];
 
 if (!USERNAME || !PASSWORD || !CHROME_PATH) {
   throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
-
-interface DictionaryEntry {
-  id: string;
-  name: string;
-  brand: string;
-  typicalQuantity: number;
-  sellingMethod: string;
-  aliases: string[];
 }
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
@@ -34,7 +44,7 @@ if (!fs.existsSync(dictPath)) {
   );
   process.exit(1);
 }
-const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
+const dictionary: DictionaryEntry[] = readDictionary(dictPath);
 
 // Debug log so we can investigate why an add did/didn't take effect. Lines go to a
 // gitignored logs/add-to-cart.log (appended) and to stderr — never stdout, so the
@@ -138,19 +148,106 @@ async function main() {
       items: before.map((c) => ({ code: c.productCode, qty: c.quantity })),
     });
 
-    const payload = matched.map((m) => ({
-      productCode: m.entry.id,
-      quantity: m.qty,
-      sellingMethod: m.entry.sellingMethod as any,
+    // One payload entry per matched item, kept paired so we can report which
+    // specific items a failing chunk contained.
+    type AddUnit = { match: (typeof matched)[number]; payload: CartItemToAdd };
+    const units: AddUnit[] = matched.map((m) => ({
+      match: m,
+      payload: {
+        productCode: m.entry.id,
+        quantity: m.qty,
+        sellingMethod: m.entry.sellingMethod as any,
+      },
     }));
-    log('Calling addToCart with payload', payload);
 
-    try {
-      await session.addToCart(payload);
-      log('addToCart returned without throwing (note: the library returns void and does not surface the API response)');
-    } catch (err) {
-      log('addToCart threw', { error: String(err) });
-      throw err;
+    // Items whose add request kept failing — keyed by product code so the
+    // verification pass can attach a reason. Per-item cart verification below
+    // remains the ground truth; this only explains a non-verified item.
+    const rejected = new Map<string, string>();
+
+    // Codes isolated as genuinely bad this run (failed alone) — flagged unavailable in
+    // the dictionary so the suggester stops suggesting them and we can offer a replacement.
+    const newlyFlagged = new Map<string, string>(); // code -> short reason
+    const today = new Date().toISOString().split('T')[0]!;
+
+    // Add one group in a single addToCart call. On failure, retry with linear
+    // backoff; if it still fails, bisect and recurse to isolate the bad item.
+    // A single item that keeps failing down to size 1 is marked rejected.
+    async function addGroup(group: AddUnit[], label: string): Promise<void> {
+      if (group.length === 0) return;
+      const codes = group.map((u) => u.payload.productCode);
+      const payload = group.map((u) => u.payload);
+
+      let lastErr: unknown;
+      for (let attempt = 0; attempt <= CHUNK_RETRIES; attempt++) {
+        if (attempt > 0) {
+          const backoff = RETRY_BACKOFF_MS * attempt;
+          log(`Chunk ${label} retry ${attempt}/${CHUNK_RETRIES} after backoff`, {
+            backoffMs: backoff,
+            codes,
+          });
+          await sleep(backoff);
+        }
+        try {
+          log(`Adding chunk ${label}`, { size: group.length, codes });
+          await session.addToCart(payload);
+          log(`Chunk ${label} addToCart returned without throwing`, { codes });
+          return;
+        } catch (err) {
+          lastErr = err;
+          log(`Chunk ${label} addToCart threw`, { attempt, codes, error: String(err) });
+        }
+      }
+
+      // Exhausted retries. If this is a single item, it's the genuinely bad one.
+      if (group.length === 1) {
+        const code = group[0]!.payload.productCode;
+        const summary = summarizeFailure(String(lastErr));
+        rejected.set(code, `add rejected after retries: ${summary}`);
+        // Flag it in the dictionary so it stops being suggested and we can offer a
+        // replacement. Mutates only this entry; the in-memory copy is updated too.
+        if (flagUnavailable(dictPath, code, summary, today)) {
+          newlyFlagged.set(code, summary);
+          const entry = dictionary.find((e) => e.id === code);
+          if (entry) entry.unavailable = { reason: summary, since: today };
+        }
+        log(`Chunk ${label} isolated a bad item`, { code, reason: summary });
+        return;
+      }
+
+      // Otherwise split in half and retry each half to isolate the bad item(s).
+      const halves = bisect(group);
+      if (!halves) {
+        // Unreachable for length > 1, but stay safe.
+        for (const u of group) {
+          rejected.set(u.payload.productCode, `add rejected after retries: ${String(lastErr)}`);
+        }
+        return;
+      }
+      log(`Chunk ${label} still failing — bisecting`, {
+        codes,
+        left: halves.left.map((u) => u.payload.productCode),
+        right: halves.right.map((u) => u.payload.productCode),
+      });
+      await addGroup(halves.left, `${label}.L`);
+      await sleep(CHUNK_DELAY_MS);
+      await addGroup(halves.right, `${label}.R`);
+    }
+
+    const chunks = chunk(units, MAX_CHUNK);
+    log('Adding in chunks', {
+      totalItems: units.length,
+      maxChunk: MAX_CHUNK,
+      chunkCount: chunks.length,
+    });
+    for (let i = 0; i < chunks.length; i++) {
+      if (i > 0) await sleep(CHUNK_DELAY_MS);
+      await addGroup(chunks[i]!, `${i + 1}/${chunks.length}`);
+    }
+    if (rejected.size > 0) {
+      log('Some items were rejected by Shufersal', {
+        codes: [...rejected.keys()],
+      });
     }
 
     // Snapshot again and verify each item actually landed. addToCart returns void, so
@@ -178,9 +275,14 @@ async function main() {
         changed: now !== had, // this run actually moved the quantity
       };
 
-      // If it isn't in the cart afterward, look the product up to explain why
-      // (out of stock, not purchasable, or a selling-method mismatch).
-      if (now === 0) {
+      // If it isn't in the cart afterward, explain why. A chunk that kept
+      // failing through retries+bisect already gives us a concrete reason;
+      // otherwise look the product up (out of stock, not purchasable, or a
+      // selling-method mismatch).
+      if (now === 0 && rejected.has(code)) {
+        entry['reason'] = rejected.get(code);
+        log('Item NOT verified in cart (add rejected)', entry);
+      } else if (now === 0) {
         try {
           const product = await session.getProductByCode(code);
           if (!product) {
@@ -220,6 +322,18 @@ async function main() {
       qty: m.qty,
     }));
     result['verification'] = verification;
+    // Matched items that are flagged unavailable — newly isolated this run, or already
+    // flagged from a previous run. The skill uses this to offer a replacement search.
+    result['unavailable'] = matched
+      .filter((m) => newlyFlagged.has(m.entry.id) || isUnavailable(m.entry))
+      .map((m) => ({
+        code: m.entry.id,
+        name: m.entry.name,
+        brand: m.entry.brand,
+        reason: newlyFlagged.get(m.entry.id) ?? m.entry.unavailable?.reason ?? 'unavailable',
+        since: m.entry.unavailable?.since ?? today,
+        newlyFlagged: newlyFlagged.has(m.entry.id),
+      }));
     result['cart'] = {
       itemCount: cart.length,
       total: Number(total.toFixed(2)),

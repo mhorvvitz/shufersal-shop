@@ -2,6 +2,13 @@ import { ShufersalBot } from 'shufersal-automation';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import {
+  scanOrderHistory,
+  writeCache,
+  seedAliases,
+  mostCommonQuantity,
+  todayISO,
+} from './lib/order-stats';
 
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -34,82 +41,38 @@ async function main() {
 
   try {
     console.log('Fetching order history...');
-    const orders = await session.getOrders();
-    const allOrders = [...orders.activeOrders, ...orders.closedOrders];
-    const ordersToCheck = allOrders.slice(0, ORDERS_TO_SCAN);
-    console.log(`Scanning ${ordersToCheck.length} orders...\n`);
+    // Shared scan path: also used by suggest.ts. Returns per-product stats.
+    const { stats, scannedOrders, medianOrderSize } = await scanOrderHistory(
+      session,
+      ORDERS_TO_SCAN,
+    );
+    console.log(`Scanned ${scannedOrders} orders...\n`);
 
-    const productMap = new Map<
-      string,
-      {
-        code: string;
-        name: string;
-        brand: string;
-        sellingMethod: string;
-        quantities: number[];
-        count: number;
-        lastOrderDate: string;
-      }
-    >();
-
-    for (const order of ordersToCheck) {
-      const details = await session.getOrderDetails(order.code);
-      if (!details) continue;
-
-      for (const item of details.items) {
-        const existing = productMap.get(item.product.code);
-        if (existing) {
-          existing.count++;
-          existing.quantities.push(item.quantity);
-        } else {
-          productMap.set(item.product.code, {
-            code: item.product.code,
-            name: item.product.name,
-            brand: item.product.brand?.name ?? '',
-            sellingMethod: item.product.sellingMethod,
-            quantities: [item.quantity],
-            count: 1,
-            lastOrderDate: order.deliveryDateTime,
-          });
-        }
-      }
-    }
+    // Building the dictionary also warms the suggester cache.
+    writeCache(stats, { scannedOrders, medianOrderSize, generatedAt: todayISO() });
 
     // Seed aliases from the Hebrew name + brand words. These are a STARTING POINT —
     // curate product-dictionary.json by hand to add English names and casual terms.
-    const draft: DraftEntry[] = Array.from(productMap.values())
-      .map((p) => {
-        const mostCommonQty = p.quantities
-          .sort(
-            (a, b) =>
-              p.quantities.filter((v) => v === a).length -
-              p.quantities.filter((v) => v === b).length,
-          )
-          .pop()!;
-
-        const aliases = [...p.name.split(/[\s,.\-\/|()]+/), ...p.brand.split(/[\s,.\-\/|()]+/)]
-          .map((w) => w.trim())
-          .filter((w) => w.length > 1)
-          .filter((w) => !/^\d+(%|גרם|מ"ל|ק"ג|ליטר)?$/.test(w));
-
-        return {
-          id: p.code,
-          name: p.name,
-          brand: p.brand,
-          sellingMethod: p.sellingMethod,
-          typicalQuantity: mostCommonQty,
-          timesOrdered: p.count,
-          lastOrderDate: p.lastOrderDate.split('T')[0]!,
-          aliases: [...new Set(aliases)],
-        };
-      })
+    // lastOrderDate mirrors the original builder: the first-scanned order containing
+    // the item (orders are scanned newest-first, so that's the most recent purchase).
+    const draft: DraftEntry[] = stats
+      .map((p) => ({
+        id: p.code,
+        name: p.name,
+        brand: p.brand,
+        sellingMethod: p.sellingMethod,
+        typicalQuantity: mostCommonQuantity(p.quantities),
+        timesOrdered: p.timesOrdered,
+        lastOrderDate: p.orderDates[0]!,
+        aliases: seedAliases(p.name, p.brand),
+      }))
       .sort((a, b) => b.timesOrdered - a.timesOrdered);
 
     const outPath = path.join(__dirname, '..', 'dictionary-draft.json');
     fs.writeFileSync(outPath, JSON.stringify(draft, null, 2), 'utf-8');
 
     console.log(`Draft written to ${outPath}`);
-    console.log(`${draft.length} unique products across ${ordersToCheck.length} orders.`);
+    console.log(`${draft.length} unique products across ${scannedOrders} orders.`);
     console.log('\nNext: curate these into product-dictionary.json — add English names,');
     console.log('Hebrew shorthand, and brand terms to each entry\'s "aliases" array.');
   } finally {
