@@ -50,6 +50,14 @@ Do these in order — **step 3 (your product dictionary) is what the skill needs
    npm run search -- "חלב 3%"          # find a product (e.g. a replacement)
    ```
 
+> **Just want to kick the tires first?** You can try the suggester with no credentials and no
+> order scan using the bundled sample data — see
+> [Try it without your own data](#try-it-without-your-own-data):
+> ```bash
+> cp product-dictionary.sample.json product-dictionary.json
+> npm run sample-stats && npm run suggest
+> ```
+
 ## How It Works
 
 1. **You speak naturally** — English, Hebrew, or a mix. "Add apples and shredded cheese" or "תוסיף חלב ופיתה".
