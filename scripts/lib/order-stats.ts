@@ -29,6 +29,19 @@ export interface OrderStatsCache extends CacheMeta {
 
 const CACHE_PATH = path.join(__dirname, '..', '..', 'order-stats.json');
 
+// Line items that aren't real products: the online delivery fee, bottle deposits, etc.
+// They appear in most orders and would otherwise pollute the dictionary and suggestions.
+const NON_PRODUCT_CODES = new Set(['P_1159']); // משלוח שופרסל אונליין (delivery fee)
+
+/**
+ * True if an order line item is a non-product charge (delivery, deposit) rather than
+ * something the user actually buys. Matched by a known code blocklist or by name.
+ */
+export function isNonProduct(code: string, name: string): boolean {
+  if (NON_PRODUCT_CODES.has(code)) return true;
+  return /משלוח|פיקדון/.test(name);
+}
+
 /** Normalize an order's deliveryDateTime (ISO timestamp) to a YYYY-MM-DD date. */
 function toDate(deliveryDateTime: string): string {
   return deliveryDateTime.split('T')[0]!;
@@ -62,6 +75,8 @@ export async function scanOrderHistory(
 
     for (const item of details.items) {
       const code = item.product.code;
+      // Skip non-product charges (delivery fee, deposits) — they aren't things to restock.
+      if (isNonProduct(code, item.product.name)) continue;
       // Guard against the same product appearing twice in one order's line items.
       const firstTimeInOrder = !seenInThisOrder.has(code);
       seenInThisOrder.add(code);
@@ -166,6 +181,31 @@ export function isDue(
 export function frequency(timesOrdered: number, totalOrders: number): number {
   if (totalOrders <= 0) return 0;
   return timesOrdered / totalOrders;
+}
+
+/**
+ * Suggestions only consider items bought within this many days. Filters out items the
+ * user appears to have stopped buying (a brief past phase shows huge overdue ratios
+ * that would otherwise dominate the ranking).
+ */
+export const RECENT_WINDOW_DAYS = 90;
+
+/** True if the item was last bought within the recency window. */
+export function boughtRecently(
+  daysSinceLast: number,
+  windowDays = RECENT_WINDOW_DAYS,
+): boolean {
+  return daysSinceLast <= windowDays;
+}
+
+/**
+ * Restock score: weight overdue-ness by how reliably the user buys the item, so
+ * frequent staples outrank stale one-offs that happen to be far past a short cadence.
+ * Returns 0 when there is no cadence (undefined overdue).
+ */
+export function restockScore(freq: number, overdueRatio: number | undefined): number {
+  if (overdueRatio === undefined) return 0;
+  return freq * overdueRatio;
 }
 
 /**

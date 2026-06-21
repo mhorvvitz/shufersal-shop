@@ -54,7 +54,10 @@ order-stats.json         ← NEW cache file (gitignored, personal like the dicti
 **`lib/order-stats.ts`**
 - `scanOrderHistory(session, ordersToScan): ProductStat[]` — logs nothing; takes an open
   session, returns per-product stats. Pulled out of `build-dictionary.ts` verbatim where
-  possible.
+  possible. **Filters out non-product line items** (`isNonProduct`) — the online delivery
+  fee (`P_1159`) and deposits (name matches `משלוח`/`פיקדון`) — so they never reach the
+  dictionary, suggestions, or the median-order-size count. `suggest.ts` re-applies the same
+  filter at cache-read time so a pre-filter cache can't reintroduce them.
 - `ProductStat`: `{ code, name, brand, sellingMethod, timesOrdered, totalOrders,
   quantities: number[], orderDates: string[], lastOrderDate }`.
 - `writeCache(stats, meta)` / `readCache()` — persist to `order-stats.json` with
@@ -106,13 +109,19 @@ Per product, from the cache:
 **Selection & ranking:**
 1. Consider only items with a defined cadence (`timesOrdered >= 2`). One-offs are never
    suggested — they have no pattern to predict from.
-2. Keep the `due` items, ranked by `overdue` descending (most overdue first), tie-broken by
-   shorter cadence (frequent staples first).
-3. Take the top **N** (default = median order size). If fewer than N items are due, suggest
-   only those that are due — never pad the list with items that aren't due yet.
+2. Keep items that are **`due`** AND were **bought within the recency window**
+   (`RECENT_WINDOW_DAYS = 90`). The recency filter drops items the user appears to have
+   stopped buying — a brief past phase (e.g. bought twice 8 months ago on a 5-day cadence)
+   otherwise shows a huge `overdue` ratio and dominates the ranking.
+3. Rank survivors by **restock score** `= frequency × overdue` (descending), so reliably
+   bought staples outrank stale items that merely happen to be far past a short cadence.
+   Tie-break by shorter cadence.
+4. Take the top **N** (default = median order size). If fewer than N qualify, suggest only
+   those — never pad with items that aren't due yet.
 
 The output exposes the inputs (`cadence`, `cadenceLabel`, `daysSinceLast`, `overdue`,
-`due`) so each suggestion is explainable: "due for milk — bought weekly, last 9 days ago."
+`score`, `due`) so each suggestion is explainable: "due for milk — bought weekly, last
+9 days ago."
 
 ### Discovery threshold (auto-add)
 
@@ -129,7 +138,7 @@ other scripts' convention:
   "suggestions": [
     { "name": "חלב בקרטון 3% שומן", "brand": "תנובה", "code": "P_4131074",
       "timesOrdered": 12, "totalOrders": 20, "daysSinceLast": 9,
-      "cadence": 7, "cadenceLabel": "weekly", "overdue": 1.29, "due": true,
+      "cadence": 7, "cadenceLabel": "weekly", "overdue": 1.29, "score": 0.77, "due": true,
       "inDictionary": true, "autoAdded": false }
   ],
   "autoAdded": [

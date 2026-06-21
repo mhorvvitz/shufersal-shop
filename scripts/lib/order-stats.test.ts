@@ -13,12 +13,58 @@ import {
   isDue,
   frequency,
   meetsDiscoveryThreshold,
+  isNonProduct,
+  boughtRecently,
+  restockScore,
   writeCache,
   readCache,
   isStale,
   todayISO,
   type ProductStat,
 } from './order-stats';
+
+// ── non-product filter ────────────────────────────────────────────────────────
+
+test('isNonProduct flags the delivery-fee code', () => {
+  assert.equal(isNonProduct('P_1159', 'anything'), true);
+});
+
+test('isNonProduct flags delivery/deposit by name', () => {
+  assert.equal(isNonProduct('P_9999', 'משלוח שופרסל אונליין'), true);
+  assert.equal(isNonProduct('P_8888', 'פיקדון בקבוקים'), true);
+});
+
+test('isNonProduct passes real products', () => {
+  assert.equal(isNonProduct('P_4131074', 'חלב בקרטון 3% שומן'), false);
+  assert.equal(isNonProduct('P_208428', 'חומוס שלם יכין'), false);
+});
+
+// ── recency window ──────────────────────────────────────────────────────────
+
+test('boughtRecently respects the default 90-day window', () => {
+  assert.equal(boughtRecently(18), true);
+  assert.equal(boughtRecently(90), true);
+  assert.equal(boughtRecently(91), false);
+  assert.equal(boughtRecently(242), false);
+});
+
+test('boughtRecently honors a custom window', () => {
+  assert.equal(boughtRecently(100, 120), true);
+  assert.equal(boughtRecently(130, 120), false);
+});
+
+// ── restock score (frequency × overdue) ───────────────────────────────────────
+
+test('restockScore weights overdue by frequency', () => {
+  // frequent staple (7/20) just overdue beats a stale one-off (2/20) far overdue
+  const staple = restockScore(frequency(7, 20), 1.88); // 0.35 * 1.88 = 0.658
+  const oneOff = restockScore(frequency(2, 20), 3.0); //  0.10 * 3.0  = 0.30
+  assert.ok(staple > oneOff);
+});
+
+test('restockScore is 0 without a cadence', () => {
+  assert.equal(restockScore(0.5, undefined), 0);
+});
 
 // ── median / median order size ──────────────────────────────────────────────
 

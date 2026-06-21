@@ -12,6 +12,10 @@ import {
   daysSince,
   overdue,
   isDue,
+  frequency,
+  boughtRecently,
+  restockScore,
+  isNonProduct,
   meetsDiscoveryThreshold,
   seedAliases,
   mostCommonQuantity,
@@ -93,6 +97,7 @@ interface Suggestion {
   cadence: number;
   cadenceLabel: string;
   overdue: number;
+  score: number;
   due: boolean;
   inDictionary: boolean;
   autoAdded: boolean;
@@ -141,12 +146,16 @@ async function run(args: CliArgs): Promise<void> {
   const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
   const dictCodes = new Set(dictionary.map((e) => e.id));
 
+  // Drop non-product line items (delivery fee, deposits) even if an older cache still
+  // contains them — the scan-time filter only protects fresh scans.
+  const stats = cache.stats.filter((s) => !isNonProduct(s.code, s.name));
+
   // Auto-add: non-dictionary items meeting the discovery threshold get appended to
   // product-dictionary.json (never reordering/rewriting existing entries).
   const autoAdded: { name: string; code: string; aliases: string[]; needsCuration: true }[] = [];
   const newEntries: DictionaryEntry[] = [];
 
-  for (const stat of cache.stats) {
+  for (const stat of stats) {
     if (dictCodes.has(stat.code)) continue;
     if (!meetsDiscoveryThreshold(stat.timesOrdered, stat.totalOrders)) continue;
 
@@ -174,7 +183,7 @@ async function run(args: CliArgs): Promise<void> {
   // Build candidate suggestions: every stat that is now in the dictionary and has a
   // defined cadence. One-offs (timesOrdered < 2) have no cadence and are skipped.
   const candidates: Suggestion[] = [];
-  for (const stat of cache.stats) {
+  for (const stat of stats) {
     const inDictionary = dictCodes.has(stat.code);
     if (!inDictionary) continue; // not curated and didn't meet discovery threshold
 
@@ -184,6 +193,7 @@ async function run(args: CliArgs): Promise<void> {
     const dsl = daysSince(stat.lastOrderDate);
     const od = overdue(dsl, cad)!;
     const due = isDue(od);
+    const score = restockScore(frequency(stat.timesOrdered, stat.totalOrders), od);
 
     candidates.push({
       name: stat.name,
@@ -195,17 +205,21 @@ async function run(args: CliArgs): Promise<void> {
       cadence: round2(cad),
       cadenceLabel: cadenceLabel(cad),
       overdue: round2(od),
+      score: round2(score),
       due,
       inDictionary: true,
       autoAdded: autoAdded.some((a) => a.code === stat.code),
     });
   }
 
-  // Keep only due items; rank by overdue desc, tie-break by shorter cadence.
+  // Keep items that are due AND still part of the user's recent buying (within the
+  // recency window — drops past phases that show huge overdue ratios). Rank by restock
+  // score (frequency × overdue) so reliable staples beat stale one-offs; tie-break by
+  // shorter cadence.
   const due = candidates
-    .filter((c) => c.due)
+    .filter((c) => c.due && boughtRecently(c.daysSinceLast))
     .sort((a, b) => {
-      if (b.overdue !== a.overdue) return b.overdue - a.overdue;
+      if (b.score !== a.score) return b.score - a.score;
       return a.cadence - b.cadence;
     });
 
