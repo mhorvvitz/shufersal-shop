@@ -1,179 +1,152 @@
-# Shufersal Shop Skill
+# 🛒 Shufersal Shop — order Israeli groceries by just telling Claude what you need
 
-A Claude skill for adding grocery products to a [Shufersal](https://www.shufersal.co.il) online shopping cart using natural language.
+**Fill your [Shufersal](https://www.shufersal.co.il) online cart by typing a sentence.** This is a
+[Claude Code](https://claude.com/claude-code) skill that turns plain language — English, Hebrew, or
+a mix — into a ready-to-review grocery cart.
 
-Say things like **"add milk, eggs, and 2 pitas"** and the skill translates that into the correct API calls using the [shufersal-automation](https://github.com/eshaham/shufersal-automation) library.
+> *"add milk, eggs, and 2 pitas"* → three items in your cart, the right brands, in seconds.
+> *"what should I buy this week?"* → a smart restock list based on what you actually order.
 
-## What it can do
+If you've ever searched **how to order groceries from Shufersal faster**, wanted to **automate
+Shufersal online shopping**, or wished your **Israeli supermarket** order could just *remember what
+you buy* — this is that. No more hunting through thousands of products to re-find the same חלב,
+קוטג', and פיתות every single week.
 
-- **Add by natural language** — "add milk, eggs, and 2 pitas" (English, Hebrew, or a mix), matched against your personal product dictionary, with verified adds.
-- **Suggest what to restock** — "what should I buy?" ranks items that are *due* based on how often you actually buy each one (cadence) and how long it's been.
-- **Cart-aware suggestions** — "what *else* should I add to my cart?" reads your current cart first, then suggests only things you haven't already added.
-- **Survive flaky/bulk adds** — large adds are chunked and retried; one bad item can't sink the whole basket.
-- **Handle discontinued products** — an item that repeatedly fails is flagged unavailable, dropped from suggestions, and the skill offers to search for a replacement.
-- **Grow itself** — recurring buys discovered in your order history are folded into the dictionary automatically.
+---
 
-## Getting Started
+## Why people use it
 
-Do these in order — **step 3 (your product dictionary) is what the skill needs before it can add anything.**
+Online grocery shopping in Israel is repetitive: every week you search the same products, scroll
+past dozens of near-identical results, and rebuild basically the same basket. This skill does that
+part for you.
 
-1. **Install** (Node.js + a local Chrome required — see [Prerequisites](#prerequisites)):
+- **🗣️ Order in one sentence** — say what you want the way you'd say it to a person, in Hebrew or English.
+- **🎯 Gets *your* products** — it learns the exact brands and sizes you actually buy, so "milk" means *your* milk, not a guess.
+- **🔁 Knows what you're due for** — it can look at your order history and suggest what to restock, by how often you really buy each thing.
+- **🛡️ Safe by design** — it only manages your cart. It never checks out, pays, or books delivery. You always do the final review.
+- **🧠 Powered by Claude** — runs as a skill inside Claude Code, so it's conversational, not another form to fill in.
+
+## What you can say
+
+```
+"add milk, eggs, and 2 pitas"
+"תוסיף קוטג' ולחם וחומוס"
+"what should I buy this week?"
+"what else should I add to my cart?"
+"show me what's in my cart"
+```
+
+When something you usually buy has been discontinued, it tells you and offers to find a
+replacement — instead of silently adding the wrong thing.
+
+## Who it's for
+
+- You shop at **Shufersal online** and want it to be faster and less repetitive.
+- You use **Claude Code** (desktop app or CLI).
+- **You don't need to be a developer.** If you're comfortable copying a few commands into a terminal
+  once during setup, you're good — day to day, you just talk to Claude.
+
+## What it will and won't do
+
+For your safety and peace of mind, the skill is limited to **building your cart**:
+
+| ✅ It can | ❌ It will never |
+|----------|-----------------|
+| Add, remove, and update items | Place an order or go to checkout |
+| Show you what's in your cart | Enter payment or billing info |
+| Suggest what to restock | Book a delivery slot |
+| Find replacement products | Spend a single shekel without you |
+
+You review the cart and check out yourself on the Shufersal website. The skill never touches money.
+
+---
+
+## Get started
+
+You'll need [Node.js](https://nodejs.org), a local Google Chrome, and a Shufersal online account.
+Setup is a few one-time commands; after that you just talk to Claude.
+
+1. **Get the skill:**
    ```bash
-   git clone <this-repo>
+   git clone https://github.com/mhorvvitz/shufersal-shop.git
    cd shufersal-shop
    npm install
    ```
-2. **Add your credentials** — copy the template and fill it in (`.env` is gitignored):
+2. **Add your Shufersal login** (kept locally in `.env`, never committed):
    ```bash
-   cp .env.example .env   # then edit with your Shufersal username, password, and CHROME_PATH
+   cp .env.example .env   # then fill in your Shufersal username, password, and CHROME_PATH
    ```
-3. **Build your product dictionary (do this first).** The skill matches what you say against
-   `product-dictionary.json` — a curated list of products *you* buy, with English/Hebrew aliases.
-   It's personal (it reveals your shopping habits), so it's **gitignored and not included** — a fresh
-   clone starts without one. Create it one of two ways:
+3. **Set up your product list** — this is what lets "milk" map to the exact product you buy. It's
+   personal, so it isn't shipped with the repo. Build it from your real order history (recommended)
+   or start from the bundled sample:
    ```bash
-   # Option A — build from your real order history, then curate the draft (recommended):
-   npm run build-dictionary -- 20      # writes dictionary-draft.json from your last 20 orders
-   #   ...then copy/curate entries into product-dictionary.json (add English names, casual terms)
+   npm run build-dictionary -- 20   # reads your last 20 orders into a draft to curate
+   #   — or —
+   cp product-dictionary.sample.json product-dictionary.json   # 10-item starter
+   ```
+4. **Use it from Claude Code** — make the skill available (see
+   [Install as a Claude skill](#install-as-a-claude-skill)) and just ask: *"add milk and 2 pitas"*,
+   *"what should I buy?"*, *"what else should I add to my cart?"*
 
-   # Option B — start from the bundled 10-item sample:
-   cp product-dictionary.sample.json product-dictionary.json
-   ```
-   If you skip this, the skill notices the file is missing and prompts you to create it before adding items.
-4. **Use it.** Ask Claude *"add milk and 2 pitas"*, *"what should I buy?"*, or *"what else should I
-   add to my cart?"* — or run a script directly:
-   ```bash
-   npm run add -- "milk" "pita=2"      # add items (verified)
-   npm run view                        # show current cart (read-only)
-   npm run suggest -- --refresh        # scan orders once, then suggest what's due
-   npm run suggest                     # fast restock suggestions from the cache
-   npm run search -- "חלב 3%"          # find a product (e.g. a replacement)
-   ```
-
-> **Just want to kick the tires first?** You can try the suggester with no credentials and no
-> order scan using the bundled sample data — see
-> [Try it without your own data](#try-it-without-your-own-data):
+> **Want to see it work before connecting your account?** Try the suggester with sample data, no
+> credentials needed:
 > ```bash
 > cp product-dictionary.sample.json product-dictionary.json
 > npm run sample-stats && npm run suggest
 > ```
 
-## How It Works
-
-1. **You speak naturally** — English, Hebrew, or a mix. "Add apples and shredded cheese" or "תוסיף חלב ופיתה".
-2. **Dictionary-first matching** — Your request is matched against `product-dictionary.json`, a curated list of products you've ordered before. Each product has human-friendly aliases in English and Hebrew, so "milk" resolves instantly to חלב בקרטון 3% תנובה without searching.
-3. **No guessing** — If a product isn't in your dictionary, the skill tells you instead of picking a random search result. You add it manually once, and it's there forever.
-4. **Quantities from habit** — If you don't specify a quantity, the skill uses your typical order quantity (e.g., you always buy 2 pitas, so "add pita" adds 2).
-5. **Verified adds** — Every add is checked against the cart afterward, so the skill reports what actually landed (not just what it tried), with a reason when something fails.
-6. **Resilient bulk adds** — Items are added in small chunks with retries; if a chunk fails, it's bisected to isolate the one bad item, so the rest of your basket still goes through.
-
-## Suggestions (Restock)
-
-Ask *"what should I buy?"* and the skill suggests items you're **due** to restock:
-
-- It scans your order history (once) into a local cache (`order-stats.json`), then ranks each item by its **purchase cadence** — how often you buy it (weekly / biweekly / monthly / …) and how long it's been since the last time.
-- The ranking favors reliable staples (frequency × how overdue) and ignores items you haven't bought in the last ~90 days, so brief past one-offs don't clutter the list.
-- The default number of suggestions is your **median order size**; pass a number to cap it (`npm run suggest -- 10`).
-- **Cart-aware:** ask *"what else should I add to my cart?"* and the skill reads your current cart first, then excludes anything already in it.
-- Recurring products found in your history that aren't in the dictionary yet are **auto-added** (flagged `needsCuration`) so they become matchable.
+You can also drive it from the terminal without Claude:
 
 ```bash
-npm run suggest -- --refresh   # re-scan order history (one login), refresh the cache
-npm run suggest                # read the cache (instant); prompts to --refresh if missing/stale
+npm run add -- "milk" "pita=2"   # add items (verified against the cart)
+npm run view                     # show current cart (read-only)
+npm run suggest                  # what should I restock?
+npm run search -- "חלב 3%"       # find a product
 ```
 
-### Try it without your own data
+---
 
-You can exercise the suggester with no credentials and no order scan, using the bundled sample:
+## 💬 Feedback, ideas, and bug reports — please!
 
-```bash
-cp product-dictionary.sample.json product-dictionary.json   # if you don't have one yet
-npm run sample-stats                                         # writes a sample order-stats.json
-npm run suggest                                              # shows a realistic "due" list
-```
+**This skill gets better with real-world use, and your input genuinely shapes it.** Whether you're a
+weekly Shufersal shopper or just curious:
 
-`sample-stats` generates a cache aligned to `product-dictionary.sample.json`, dated relative to
-today so it never goes stale. It **overwrites** `order-stats.json` — rebuild your real one anytime
-with `npm run suggest -- --refresh`.
+- 🐛 **Something didn't work?** [Open an issue](https://github.com/mhorvvitz/shufersal-shop/issues) —
+  include what you said and what happened.
+- 💡 **Idea or feature request?** We'd love to hear how you'd want to shop. Open an issue or start a
+  discussion.
+- ⭐ **Find it useful?** Star the repo — it helps other Israeli shoppers find it.
+- 🛠️ **Want to contribute?** PRs welcome (see the reference below).
 
-## When a Product Becomes Unavailable
+No feedback is too small. "I wish it did X" is exactly what we want to hear.
 
-Shufersal product codes go stale (items get discontinued). When an add for a specific item keeps
-failing, the skill **flags that entry** in your dictionary (`"unavailable": { reason, since }`),
-stops suggesting it, and offers to find a replacement:
+---
 
-```bash
-npm run search -- "חמאת בוטנים"   # read-only product search for a replacement
-```
+## How it works
 
-Pick an in-stock result and the skill updates that dictionary entry's `id` (מק"ט) and clears the
-flag. `search` is read-only — it never adds or touches checkout.
+1. **You speak naturally** — English, Hebrew, or a mix.
+2. **It matches against your product list** (`product-dictionary.json`) — a curated set of the
+   products *you* buy, each with friendly aliases, so "milk" resolves instantly to
+   חלב בקרטון 3% תנובה without searching.
+3. **It never guesses** — if something isn't on your list, it tells you instead of adding a random
+   search result. You add it once and it's remembered.
+4. **Quantities follow your habits** — skip the number and it uses your usual amount (always buy 2
+   pitas? "add pita" adds 2).
+5. **Every add is verified** — it checks the cart afterward and reports what actually landed, with a
+   reason when something doesn't.
+6. **Resilient and self-improving** — big adds are chunked and retried so one bad item can't sink the
+   basket; discontinued products are flagged and dropped from suggestions; and recurring buys it
+   spots in your history get folded into your list automatically.
 
-## Safety
+---
 
-The skill is limited to **cart management only**. It cannot:
+## Reference
 
-- Place orders or go to checkout
-- Select delivery time slots
-- Access payment or billing information
+### Install as a Claude skill
 
-Checkout must be done manually on the Shufersal website.
-
-## Setup
-
-The skill is self-contained. Its one external dependency,
-[shufersal-automation](https://github.com/eshaham/shufersal-automation) (MIT), is vendored under
-`vendor/shufersal-automation`, so `npm install` wires it up locally — no external checkout or
-registry access required. (It's vendored rather than installed as a package because the library is
-consumed as TypeScript source via an internal `~/*` path alias, which only resolves when the
-library is treated as first-party source.)
-
-### The vendored library (git subtree)
-
-`vendor/shufersal-automation` is a **git subtree** tracking
-[eshaham/shufersal-automation](https://github.com/eshaham/shufersal-automation) on `main`, imported
-with `--squash` (upstream history is collapsed into one commit per sync, not interleaved into ours).
-
-**Golden rule: never edit anything under `vendor/shufersal-automation/`.** Local edits there turn
-every upstream sync into a merge conflict. Everything the skill needs to adapt the library lives
-*outside* the folder and should stay there:
-
-- `tsconfig.json` — the `shufersal-automation` and `~/*` path aliases that resolve the library to its source
-- `package.json` — the `file:vendor/shufersal-automation` dependency
-- `.npmrc` — `install-links=false`, so `npm install` symlinks the vendored package instead of copying it
-
-The subtree pulls the upstream repo in full (its `.github/`, `docs/`, configs, `package-lock.json`,
-etc.), but only `src/` is ever used — `tsconfig.json` points the alias at `vendor/shufersal-automation/src/index.ts`.
-
-**Pull upstream updates** (requires an `upstream` remote — add once with
-`git remote add upstream https://github.com/eshaham/shufersal-automation.git`):
-
-```bash
-git subtree pull --prefix=vendor/shufersal-automation upstream main --squash
-npm install   # re-link the package and refresh the library's own deps
-```
-
-### Prerequisites
-
-- Node.js
-- A local Chrome installation
-
-### Install
-
-See [Getting Started](#getting-started) above for the full ordered walkthrough (install →
-credentials → build dictionary → use). `.env` holds your credentials and is gitignored:
-
-```
-SHUFERSAL_USERNAME=your-username
-SHUFERSAL_PASSWORD=your-password
-CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
-```
-
-### Install as a Claude Skill
-
-Place this directory under your Claude skills location (e.g. a `shufersal-shop` folder in
-`.claude/skills/`, or a junction/symlink pointing to this repo). The skill is invoked by the
-`name` in `SKILL.md` (`shufersal-shop`), so it's available as `/shufersal-shop`.
+Place this directory under your Claude skills location — a `shufersal-shop` folder in
+`.claude/skills/`, or a junction/symlink pointing at this repo (so edits stay in one place). The
+skill is invoked by the `name` in `SKILL.md`, so it shows up as `/shufersal-shop`.
 
 ### Scripts
 
@@ -187,14 +160,52 @@ Place this directory under your Claude skills location (e.g. a `shufersal-shop` 
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
 | `npm run typecheck` | Type-check the scripts |
 
-(You can also call the scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.)
+(You can also call scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.) Run the
+unit tests with `npx tsx --test scripts/lib/*.test.ts scripts/*.test.ts`.
 
-Run the unit tests (Node's built-in runner, no network) with, e.g.,
-`npx tsx --test scripts/lib/*.test.ts`.
+### Restock suggestions
 
-## Product Dictionary
+Ask *"what should I buy?"* and the skill suggests items you're **due** to restock:
 
-`product-dictionary.json` is the core of the skill. Each entry looks like:
+- It scans your order history once into a local cache (`order-stats.json`), then ranks each item by
+  its **purchase cadence** — how often you buy it (weekly / biweekly / monthly / …) and how overdue
+  it is.
+- It favors reliable staples and ignores items you haven't bought in ~90 days, so brief past one-offs
+  don't clutter the list. Default count is your **median order size** (`npm run suggest -- 10` to cap).
+- **Cart-aware:** *"what else should I add to my cart?"* reads your current cart first and excludes
+  what's already in it.
+
+```bash
+npm run suggest -- --refresh   # re-scan order history (one login), refresh the cache
+npm run suggest                # read the cache (instant); prompts to --refresh if missing/stale
+```
+
+**Try it without your own data** (no credentials, no scan):
+
+```bash
+cp product-dictionary.sample.json product-dictionary.json
+npm run sample-stats           # writes a sample order-stats.json, dated relative to today
+npm run suggest
+```
+
+`sample-stats` **overwrites** `order-stats.json` — rebuild your real one anytime with
+`npm run suggest -- --refresh`.
+
+### When a product becomes unavailable
+
+Shufersal product codes go stale as items get discontinued. When an add for a specific item keeps
+failing, the skill flags that entry in your product list (`"unavailable": { reason, since }`), stops
+suggesting it, and offers to find a replacement:
+
+```bash
+npm run search -- "חמאת בוטנים"   # read-only search for a replacement
+```
+
+Pick an in-stock result and the skill updates that entry's product code (מק"ט) and clears the flag.
+
+### Your product list (`product-dictionary.json`)
+
+This is the heart of the skill. Each entry looks like:
 
 ```json
 {
@@ -207,50 +218,74 @@ Run the unit tests (Node's built-in runner, no network) with, e.g.,
 }
 ```
 
-Entries may also carry two optional fields the skill manages automatically: `needsCuration: true`
-(auto-added from your order history — aliases still want a human pass) and
-`unavailable: { reason, since }` (the product code repeatedly failed to add, so it's skipped in
-suggestions until you swap in a replacement).
+Entries may also carry two fields the skill manages automatically: `needsCuration: true` (auto-added
+from your history — aliases still want a human pass) and `unavailable: { reason, since }` (the
+product code repeatedly failed to add).
 
-The real `product-dictionary.json` is **personal and gitignored** — it's not committed, so each
-checkout starts without one. The repo ships `product-dictionary.sample.json` (10 items) as a
-tracked, shareable starter and format reference.
+Your real `product-dictionary.json` is **personal and gitignored** — it reflects your shopping
+habits, so it's never committed. The repo ships `product-dictionary.sample.json` (10 items) as a
+shareable starter and format reference.
 
-### Building the Dictionary
+**Adding a product by hand:** create an entry with the Shufersal code (`id` / מק"ט), Hebrew `name`,
+`brand`, `typicalQuantity`, `sellingMethod` (`"UNIT"` or `"WEIGHT"`), and `aliases` (the ways you'd
+ask for it, in English and Hebrew).
 
-Two ways to create your `product-dictionary.json` (see [Getting Started](#getting-started) step 3):
+### The vendored library (git subtree) — for maintainers
 
-- **From your orders (recommended):** `npm run build-dictionary -- 20` scans your last 20 orders and
-  generates `dictionary-draft.json` (auto-seeded with Hebrew aliases). Then curate it into
-  `product-dictionary.json` by adding English names and casual terms.
-- **From the sample:** `cp product-dictionary.sample.json product-dictionary.json`, then extend it.
+The skill is self-contained. Its one external dependency,
+[shufersal-automation](https://github.com/eshaham/shufersal-automation) (MIT), is vendored under
+`vendor/shufersal-automation` as a **git subtree**, so `npm install` wires it up locally — no
+external checkout or registry access. (It's vendored rather than installed as a package because the
+library is consumed as TypeScript source via an internal `~/*` path alias.)
 
-### Adding Products
+**Golden rule: never edit anything under `vendor/shufersal-automation/`.** Local edits there turn
+every upstream sync into a merge conflict. The adapters live *outside* the folder: `tsconfig.json`
+(path aliases), `package.json` (the `file:` dependency), and `.npmrc` (`install-links=false`).
 
-When the skill can't find a product, add a new entry with:
-- `id` — Shufersal product code (מק"ט), e.g., `P_4131074`
-- `name` — Hebrew product name as it appears on Shufersal
-- `brand` — Brand name
-- `typicalQuantity` — How many you usually buy
-- `sellingMethod` — `"UNIT"` or `"WEIGHT"`
-- `aliases` — Ways you might ask for it (English, Hebrew, brand names, shorthand)
+**Pull upstream updates** (needs an `upstream` remote —
+`git remote add upstream https://github.com/eshaham/shufersal-automation.git`):
 
-## Files
+```bash
+git subtree pull --prefix=vendor/shufersal-automation upstream main --squash
+npm install
+```
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org)
+- A local Google Chrome installation (set `CHROME_PATH` in `.env`)
+- A Shufersal online account
+
+`.env` holds your credentials and is gitignored:
+
+```
+SHUFERSAL_USERNAME=your-username
+SHUFERSAL_PASSWORD=your-password
+CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+```
+
+### Files
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart |
+| `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart, suggest, and handle unavailable items |
 | `product-dictionary.json` | Your curated product list with aliases — **personal, gitignored** (create it on first use) |
 | `product-dictionary.sample.json` | 10-item starter (tracked) — copy to `product-dictionary.json` to begin |
-| `scripts/add-to-cart.ts` | The runner — matches items, adds them (chunked + retried), and verifies each add; flags unavailable items |
-| `scripts/view-cart.ts` | Read-only cart viewer (maps product codes back to dictionary names) |
+| `scripts/add-to-cart.ts` | The runner — matches items, adds them (chunked + retried), verifies each add, flags unavailable items |
+| `scripts/view-cart.ts` | Read-only cart viewer |
 | `scripts/suggest.ts` | Cadence-based restock suggestions from the cached order scan |
-| `scripts/search.ts` | Read-only product search (find a replacement for an unavailable item) |
+| `scripts/search.ts` | Read-only product search (find a replacement) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
-| `scripts/sample-stats.ts` | Generates a sample `order-stats.json` aligned to the sample dictionary (try the suggester with no scan) |
-| `scripts/lib/` | Shared helpers: `order-stats` (scan/cache/cadence), `dictionary` (entry type + unavailable flag), `chunk` (chunk/bisect) — each with unit tests |
-| `order-stats.json` | Suggester cache built by `suggest --refresh` — **personal, gitignored** |
-| `logs/add-to-cart.log` | Per-run trace from the runner, for debugging adds (gitignored) |
-| `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree of [eshaham/shufersal-automation](https://github.com/eshaham/shufersal-automation) — the only external dependency; don't edit (see [Setup](#the-vendored-library-git-subtree)) |
+| `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
+| `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk` — each with unit tests |
+| `order-stats.json` | Suggester cache — **personal, gitignored** |
+| `logs/add-to-cart.log` | Per-run trace from the runner (gitignored) |
+| `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree — don't edit (see "The vendored library" above) |
 | `evals/` | Test cases for skill evaluation |
 | `.env.example` | Template for credentials; copy to `.env` |
+
+---
+
+*Not affiliated with or endorsed by Shufersal. Uses the open-source
+[shufersal-automation](https://github.com/eshaham/shufersal-automation) library. Use it with your own
+account, at your own discretion.*
