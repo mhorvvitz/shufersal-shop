@@ -74,6 +74,20 @@ npm run suggest -- --refresh   # re-scan order history (one login), refresh the 
 npm run suggest                # read the cache (instant); prompts to --refresh if missing/stale
 ```
 
+### Try it without your own data
+
+You can exercise the suggester with no credentials and no order scan, using the bundled sample:
+
+```bash
+cp product-dictionary.sample.json product-dictionary.json   # if you don't have one yet
+npm run sample-stats                                         # writes a sample order-stats.json
+npm run suggest                                              # shows a realistic "due" list
+```
+
+`sample-stats` generates a cache aligned to `product-dictionary.sample.json`, dated relative to
+today so it never goes stale. It **overwrites** `order-stats.json` — rebuild your real one anytime
+with `npm run suggest -- --refresh`.
+
 ## When a Product Becomes Unavailable
 
 Shufersal product codes go stale (items get discontinued). When an add for a specific item keeps
@@ -161,6 +175,7 @@ Place this directory under your Claude skills location (e.g. a `shufersal-shop` 
 | `npm run view` | Show the current cart contents (read-only) |
 | `npm run suggest` | Suggest what to restock from the cached order scan (`-- N` caps the count, `-- --refresh` re-scans) |
 | `npm run search -- "חלב 3%"` | Read-only product search (find a replacement for an unavailable item) |
+| `npm run sample-stats` | Write a sample `order-stats.json` (aligned to the sample dictionary) to try the suggester without a scan |
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
 | `npm run typecheck` | Type-check the scripts |
 
@@ -224,6 +239,7 @@ When the skill can't find a product, add a new entry with:
 | `scripts/suggest.ts` | Cadence-based restock suggestions from the cached order scan |
 | `scripts/search.ts` | Read-only product search (find a replacement for an unavailable item) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
+| `scripts/sample-stats.ts` | Generates a sample `order-stats.json` aligned to the sample dictionary (try the suggester with no scan) |
 | `scripts/lib/` | Shared helpers: `order-stats` (scan/cache/cadence), `dictionary` (entry type + unavailable flag), `chunk` (chunk/bisect) — each with unit tests |
 | `order-stats.json` | Suggester cache built by `suggest --refresh` — **personal, gitignored** |
 | `logs/add-to-cart.log` | Per-run trace from the runner, for debugging adds (gitignored) |

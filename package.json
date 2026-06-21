@@ -9,6 +9,7 @@
     "build-dictionary": "tsx scripts/build-dictionary.ts",
     "suggest": "tsx scripts/suggest.ts",
     "search": "tsx scripts/search.ts",
+    "sample-stats": "tsx scripts/sample-stats.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
