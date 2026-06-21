@@ -174,9 +174,25 @@ weekly and last got it 9 days ago" — and offers to add a chosen set via the ex
   ranked list; confirm a known recurring non-dictionary item gets auto-added with
   `needsCuration: true`.
 
+## Bad-item handling (cross-feature)
+
+When `add-to-cart.ts` isolates a genuinely-bad item (a chunk that fails down to a single
+item, e.g. a discontinued product that 500s), it flags that entry in
+`product-dictionary.json` as `"unavailable": { reason, since }` and includes it in the
+result's `unavailable` array. The suggester **skips any entry flagged `unavailable`**.
+SKILL.md guides Claude to offer a replacement search (`scripts/search.ts`, read-only) and,
+on the user's pick, swap the entry's `id` and clear the flag. Shared helpers live in
+`scripts/lib/dictionary.ts` (`flagUnavailable`, `isUnavailable`, `summarizeFailure`).
+
+## Cart-aware suggestions
+
+"What *else* should I add to my cart?" is handled at the SKILL.md orchestration level, not
+inside `suggest.ts` (which stays cache-only): Claude first runs `view-cart.ts`, then
+`suggest.ts`, and excludes suggestions whose `code` is already in the cart before presenting
+them. Keeping the cart read out of `suggest.ts` preserves its instant, login-free path.
+
 ## Out of scope
 
-- Add-runner auto-chunking + per-chunk retry for the bulk-add 500/405 (separate task).
 - Alias enrichment of `needsCuration` entries (manual/later).
-- Live cart cross-referencing to exclude items already in the cart (possible future
-  enhancement; would require a cart read at suggest time).
+- A `--exclude-cart` flag inside `suggest.ts` (would add a login to the cached path; the
+  cart-aware flow above lives in SKILL.md instead).

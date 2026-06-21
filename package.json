@@ -8,6 +8,7 @@
     "view": "tsx scripts/view-cart.ts",
     "build-dictionary": "tsx scripts/build-dictionary.ts",
     "suggest": "tsx scripts/suggest.ts",
+    "search": "tsx scripts/search.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

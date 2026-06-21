@@ -4,6 +4,13 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { chunk, bisect } from './lib/chunk';
+import {
+  readDictionary,
+  flagUnavailable,
+  summarizeFailure,
+  isUnavailable,
+  type DictionaryEntry,
+} from './lib/dictionary';
 
 // Bulk adds go through Shufersal's POST /cart/addGrid, which 500s on large
 // payloads and 405s under rate-limiting. We therefore add in small chunks,
@@ -26,15 +33,6 @@ if (!USERNAME || !PASSWORD || !CHROME_PATH) {
   throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
 }
 
-interface DictionaryEntry {
-  id: string;
-  name: string;
-  brand: string;
-  typicalQuantity: number;
-  sellingMethod: string;
-  aliases: string[];
-}
-
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
 if (!fs.existsSync(dictPath)) {
   console.error(
@@ -46,7 +44,7 @@ if (!fs.existsSync(dictPath)) {
   );
   process.exit(1);
 }
-const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
+const dictionary: DictionaryEntry[] = readDictionary(dictPath);
 
 // Debug log so we can investigate why an add did/didn't take effect. Lines go to a
 // gitignored logs/add-to-cart.log (appended) and to stderr — never stdout, so the
@@ -167,6 +165,11 @@ async function main() {
     // remains the ground truth; this only explains a non-verified item.
     const rejected = new Map<string, string>();
 
+    // Codes isolated as genuinely bad this run (failed alone) — flagged unavailable in
+    // the dictionary so the suggester stops suggesting them and we can offer a replacement.
+    const newlyFlagged = new Map<string, string>(); // code -> short reason
+    const today = new Date().toISOString().split('T')[0]!;
+
     // Add one group in a single addToCart call. On failure, retry with linear
     // backoff; if it still fails, bisect and recurse to isolate the bad item.
     // A single item that keeps failing down to size 1 is marked rejected.
@@ -198,9 +201,17 @@ async function main() {
 
       // Exhausted retries. If this is a single item, it's the genuinely bad one.
       if (group.length === 1) {
-        const reason = `add rejected after retries: ${String(lastErr)}`;
-        rejected.set(group[0]!.payload.productCode, reason);
-        log(`Chunk ${label} isolated a bad item`, { code: codes[0], reason });
+        const code = group[0]!.payload.productCode;
+        const summary = summarizeFailure(String(lastErr));
+        rejected.set(code, `add rejected after retries: ${summary}`);
+        // Flag it in the dictionary so it stops being suggested and we can offer a
+        // replacement. Mutates only this entry; the in-memory copy is updated too.
+        if (flagUnavailable(dictPath, code, summary, today)) {
+          newlyFlagged.set(code, summary);
+          const entry = dictionary.find((e) => e.id === code);
+          if (entry) entry.unavailable = { reason: summary, since: today };
+        }
+        log(`Chunk ${label} isolated a bad item`, { code, reason: summary });
         return;
       }
 
@@ -311,6 +322,18 @@ async function main() {
       qty: m.qty,
     }));
     result['verification'] = verification;
+    // Matched items that are flagged unavailable — newly isolated this run, or already
+    // flagged from a previous run. The skill uses this to offer a replacement search.
+    result['unavailable'] = matched
+      .filter((m) => newlyFlagged.has(m.entry.id) || isUnavailable(m.entry))
+      .map((m) => ({
+        code: m.entry.id,
+        name: m.entry.name,
+        brand: m.entry.brand,
+        reason: newlyFlagged.get(m.entry.id) ?? m.entry.unavailable?.reason ?? 'unavailable',
+        since: m.entry.unavailable?.since ?? today,
+        newlyFlagged: newlyFlagged.has(m.entry.id),
+      }));
     result['cart'] = {
       itemCount: cart.length,
       total: Number(total.toFixed(2)),

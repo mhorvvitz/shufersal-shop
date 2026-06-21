@@ -23,21 +23,12 @@ import {
   type ProductStat,
   type OrderStatsCache,
 } from './lib/order-stats';
+import { readDictionary, isUnavailable, type DictionaryEntry } from './lib/dictionary';
 
 // Load credentials from the skill's own .env (see README). Only needed for --refresh.
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
-
-interface DictionaryEntry {
-  id: string;
-  name: string;
-  brand: string;
-  typicalQuantity: number;
-  sellingMethod: string;
-  aliases: string[];
-  needsCuration?: boolean;
-}
 
 interface CliArgs {
   refresh: boolean;
@@ -143,8 +134,10 @@ async function run(args: CliArgs): Promise<void> {
     stale = isStale(cache);
   }
 
-  const dictionary: DictionaryEntry[] = JSON.parse(fs.readFileSync(dictPath, 'utf-8'));
+  const dictionary: DictionaryEntry[] = readDictionary(dictPath);
   const dictCodes = new Set(dictionary.map((e) => e.id));
+  // Codes flagged unavailable (e.g. by the add runner) are never suggested.
+  const unavailableCodes = new Set(dictionary.filter(isUnavailable).map((e) => e.id));
 
   // Drop non-product line items (delivery fee, deposits) even if an older cache still
   // contains them — the scan-time filter only protects fresh scans.
@@ -186,6 +179,7 @@ async function run(args: CliArgs): Promise<void> {
   for (const stat of stats) {
     const inDictionary = dictCodes.has(stat.code);
     if (!inDictionary) continue; // not curated and didn't meet discovery threshold
+    if (unavailableCodes.has(stat.code)) continue; // flagged unavailable — don't suggest
 
     const cad = cadence(stat.orderDates);
     if (cad === undefined) continue; // one-off, never suggested
