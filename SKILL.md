@@ -3,7 +3,7 @@ name: shufersal-shop
 description: Add grocery products to a Shufersal online shopping cart using natural language. Use this skill whenever the user mentions adding groceries, food items, or products to their Shufersal cart, shopping list, or online grocery order. Triggers on phrases like "add milk and bread", "I need 3 yogurts", "put eggs in the cart", "buy some cheese", "get me 2 bottles of water", or any Hebrew grocery item names. Also use when the user wants to search for products on Shufersal, view their cart, remove items, or manage cart contents. Even if the user doesn't say "Shufersal" explicitly, use this skill when they mention grocery shopping in the context of this project.
 compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Also needs a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Shufersal Shop - Natural Language Grocery Shopping
@@ -78,10 +78,12 @@ Each entry looks like:
 
 **If a match is found:** Add it directly. No need to search or confirm — the dictionary represents products the user has chosen before.
 
-**If no match is found:** Do NOT search the Shufersal API and guess. Instead, tell the user:
-> "I couldn't find '[item]' in your product dictionary. Please add it manually on the Shufersal website, or tell me the exact product name/מק"ט so I can add it to your dictionary for next time."
-
-This is important because Shufersal has thousands of products and a search for "cheese" returns dozens of results. Without the dictionary, the skill cannot be confident it's picking the right product.
+**If no match is found:** Never silently guess and add a product — Shufersal has thousands of
+products and a search for "cheese" returns dozens. First tell the user the item isn't in their
+dictionary. Then, rather than just stopping, **offer to find it**: search Shufersal, show real
+candidates, and let them pick — see **Handling Unmatched Items** below for that flow. If the user
+declines, leave it for them to add manually. The rule that survives either way: the skill only
+adds a product the dictionary already knows or the user has explicitly confirmed — never a guess.
 
 ### Step 3: Run the Cart Runner
 
@@ -235,16 +237,105 @@ rejected):
 2. **Offer to find a replacement** — don't guess. With their go-ahead, search Shufersal:
 
    ```bash
-   npx tsx scripts/search.ts "<hebrew or english name>"
+   npx tsx scripts/search.ts "<hebrew product name>"
    ```
 
-   It prints candidates (`code`, `name`, `brand`, `price`, `inStock`, `purchasable`). Show the
-   in-stock, purchasable options and let the user pick.
+   Search in **Hebrew** — the catalogue is Hebrew, so English queries return junk. It prints
+   `{ "searches": [ { query, totalResults, results: [ { code, name, brand, sellingMethod, price,
+   inStock, purchasable } ] } ] }`. Show the in-stock, purchasable options and let the user pick.
+   (See **Handling Unmatched Items** for more on translating queries and reading results.)
 3. On their pick, update that dictionary entry: set `id` to the new מק"ט, refresh `name`/`brand`
    if needed, and **remove the `unavailable` flag**. Then retry the add.
 
 Never auto-swap a replacement — confirm the choice with the user first, consistent with the
 no-guessing rule.
+
+## Handling Unmatched Items (Search & Suggest)
+
+When the add runner returns items in `unmatched` (not in the dictionary), don't just tell the
+user to add them manually — offer to find them. The dictionary is built from past orders, so a
+miss usually means a new item or one the user buys but hasn't curated yet. The goal is to match
+it **without guessing**: search Shufersal, show real candidates, let the user choose, then save
+the choice so it matches next time.
+
+Run this flow with the user's go-ahead (a blanket "try hard to match these" counts):
+
+1. **Translate each unmatched term to a Hebrew search query.** Shufersal's catalogue is Hebrew —
+   English queries return junk or nothing (real examples: `napkins` → 0 results, `feta cheese` →
+   an eyeliner). Use the Hebrew product name: napkins → `מפיות`, feta cheese → `גבינת פטה`, cherry
+   tomatoes → `עגבניות שרי`, white meat / chicken breast → `חזה עוף טרי`.
+2. **Search them all in one login** with the batch search (pass every query at once — searching
+   one-login-per-query is slow and risks rate-limiting):
+
+   ```bash
+   npx tsx scripts/search.ts --limit 6 "גבינת פטה" "עגבניות שרי" "מפיות"
+   ```
+
+   It prints `{ "searches": [ { query, totalResults, results: [ { code, name, brand,
+   sellingMethod, price, inStock, purchasable } ] } ] }`.
+3. **Recommend the best in-stock, purchasable candidate per item** (with an alternative or two
+   when the choice is real), and call out judgment calls explicitly:
+   - **Selling method matters.** A `WEIGHT` item (fresh meat, deli cheese) is priced per-kg and
+     behaves differently from a `UNIT` pack — say so ("chicken breast, ₪39.90/kg, by weight").
+   - **No clean match?** If only loosely-related products come back (e.g. fresh strawberries out
+     of season → only jam/frozen), say so and offer the closest option or to skip — never force a
+     wrong product in.
+4. **Confirm before adding.** Never auto-add a searched product; the no-guessing rule applies
+   here too. Let the user approve, swap, or skip each pick.
+5. **On approval, save each chosen product to `product-dictionary.json`** (see "Adding New
+   Products") with aliases that include the user's own wording, then add it with the add runner.
+   Saving means it matches directly next time — no search needed.
+
+If a term *is* in the dictionary under a phrasing the runner didn't match (e.g. the user said
+"large yogurt" but the entry's aliases were `yogurt jug` / `יוגורט בכד`), don't create a duplicate
+entry — add the new alias to the existing entry and re-run.
+
+## Removing Items from the Cart
+
+When the user asks to remove items ("remove the milk", "take out the spaghetti", "remove
+everything that isn't on my list"), use the remove runner. Like the add runner, it matches
+dictionary aliases, snapshots the cart before and after, and **verifies each item is actually
+gone** — the removal is the ground truth, not the fact that the call returned.
+
+```bash
+npx tsx scripts/remove-from-cart.ts "olive oil" "honey" "P_8076800195057"
+```
+
+Each argument is one item to remove — a dictionary **alias** (resolved to a product code the same
+way the add runner matches) or a raw **product code** (`P_...`). Raw codes matter because cart
+items that aren't in the dictionary are known only by their code (the viewer shows them with
+`name: null`).
+
+It prints a JSON block between `RESULT_JSON_START`/`RESULT_JSON_END`:
+
+```json
+{
+  "removed": [{ "code": "P_7290120871090", "name": "שמן זית כתית מעולה", "brand": "FERNANDO", "removed": true }],
+  "notInCart": [{ "code": "P_...", "name": "...", "brand": "..." }],
+  "unmatched": ["bread"],
+  "ambiguous": [{ "query": "cheese", "options": [ ... ] }],
+  "cart": { "itemCount": 29, "total": 519.34 }
+}
+```
+
+- **`removed[].removed`** is the verification verdict — `true` means it's gone from the cart now.
+  Report based on this, not on the call succeeding.
+- **`notInCart`** items were already absent (nothing to do).
+- **`unmatched`** aliases aren't in the dictionary and **`ambiguous`** matched more than one entry
+  — the runner removes neither; ask which they meant (or pass the product code directly).
+- A trace is appended to `logs/remove-from-cart.log`.
+
+**"Remove everything not on my list" (cart cleanup).** To prune the cart down to a list:
+
+1. Run `npx tsx scripts/view-cart.ts` to get every cart item's `productCode`.
+2. Work out which codes are on the user's list (the items you just added/matched are the keep set).
+3. Pass the **leftover codes** (those not on the list) to the remove runner. Use codes here, not
+   aliases — cart items outside the dictionary have no alias.
+4. **Confirm the removal list with the user first.** Removal is hard to undo, and which cart item
+   maps to a list entry is often a judgment call (is the cart's 3% milk the list's "1% milk"? is
+   that cheerios the user's "cereal"?). Show what you'll remove and what you'll keep, and only
+   delete on their go-ahead. Don't silently remove cart items that aren't in the dictionary —
+   flag them, since you can't be sure what they are.
 
 ## Skill Layout
 
@@ -259,16 +350,18 @@ shufersal-shop/
 ├── product-dictionary.sample.json ← 10-item starter (tracked); copy to product-dictionary.json to begin
 ├── scripts/
 │   ├── add-to-cart.ts        ← the runner you invoke to add items
+│   ├── remove-from-cart.ts   ← remove items (by alias or product code), with verification
 │   ├── view-cart.ts          ← read-only cart viewer (what's in the cart / verify an add)
 │   ├── suggest.ts            ← cadence-based "what should I restock" suggestions
-│   ├── search.ts             ← read-only product search (find a replacement for a bad item)
+│   ├── search.ts             ← read-only product search (one login, one or many queries)
 │   ├── build-dictionary.ts   ← scans order history to seed the dictionary
 │   └── lib/                  ← shared helpers (order-stats, dictionary, chunk)
 ├── order-stats.json          ← suggester cache (personal, gitignored; built by `suggest --refresh`)
 ├── vendor/
 │   └── shufersal-automation/ ← bundled library source (MIT) — the only external dependency
 ├── logs/
-│   └── add-to-cart.log       ← per-run trace from the add runner (gitignored)
+│   ├── add-to-cart.log       ← per-run trace from the add runner (gitignored)
+│   └── remove-from-cart.log  ← per-run trace from the remove runner (gitignored)
 ├── package.json / tsconfig.json
 ├── .env.example              ← template for credentials; copy to .env
 └── .env                      ← credentials (gitignored)
