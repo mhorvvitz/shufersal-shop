@@ -1,10 +1,11 @@
 {
   "name": "shufersal-shop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A self-contained Claude skill for natural-language grocery shopping on Shufersal.",
   "private": true,
   "scripts": {
     "add": "tsx scripts/add-to-cart.ts",
+    "remove": "tsx scripts/remove-from-cart.ts",
     "view": "tsx scripts/view-cart.ts",
     "build-dictionary": "tsx scripts/build-dictionary.ts",
     "suggest": "tsx scripts/suggest.ts",

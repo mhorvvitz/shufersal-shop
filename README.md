@@ -31,13 +31,17 @@ part for you.
 ```
 "add milk, eggs, and 2 pitas"
 "תוסיף קוטג' ולחם וחומוס"
+"remove the olive oil and honey"
+"here's my list — add it and remove anything in the cart that isn't on it"
 "what should I buy this week?"
 "what else should I add to my cart?"
 "show me what's in my cart"
 ```
 
-When something you usually buy has been discontinued, it tells you and offers to find a
-replacement — instead of silently adding the wrong thing.
+When something isn't on your product list, it doesn't guess — it offers to **search Shufersal,
+show you real options, and remember your pick** for next time. And when a product you usually buy
+has been discontinued, it tells you and offers to find a replacement, instead of silently adding
+the wrong thing.
 
 ## Who it's for
 
@@ -98,10 +102,11 @@ Setup is a few one-time commands; after that you just talk to Claude.
 You can also drive it from the terminal without Claude:
 
 ```bash
-npm run add -- "milk" "pita=2"   # add items (verified against the cart)
-npm run view                     # show current cart (read-only)
-npm run suggest                  # what should I restock?
-npm run search -- "חלב 3%"       # find a product
+npm run add -- "milk" "pita=2"        # add items (verified against the cart)
+npm run remove -- "honey" "olive oil" # remove items (by alias or product code), verified
+npm run view                          # show current cart (read-only)
+npm run suggest                       # what should I restock?
+npm run search -- "חלב 3%"            # find a product (one or many queries)
 ```
 
 ---
@@ -128,8 +133,9 @@ No feedback is too small. "I wish it did X" is exactly what we want to hear.
 2. **It matches against your product list** (`product-dictionary.json`) — a curated set of the
    products *you* buy, each with friendly aliases, so "milk" resolves instantly to
    חלב בקרטון 3% תנובה without searching.
-3. **It never guesses** — if something isn't on your list, it tells you instead of adding a random
-   search result. You add it once and it's remembered.
+3. **It never guesses** — if something isn't on your list, it doesn't add a random search result.
+   Instead it offers to search Shufersal, shows you real in-stock options to pick from, and saves
+   your choice so it's matched directly next time.
 4. **Quantities follow your habits** — skip the number and it uses your usual amount (always buy 2
    pitas? "add pita" adds 2).
 5. **Every add is verified** — it checks the cart afterward and reports what actually landed, with a
@@ -153,9 +159,10 @@ skill is invoked by the `name` in `SKILL.md`, so it shows up as `/shufersal-shop
 | Command | What it does |
 |---------|--------------|
 | `npm run add -- "milk" "pita=3"` | Add items to cart (the runner); chunks, retries, and verifies each add |
+| `npm run remove -- "honey" "P_123"` | Remove items by dictionary alias or raw product code; verifies each item is actually gone |
 | `npm run view` | Show the current cart contents (read-only) |
 | `npm run suggest` | Suggest what to restock from the cached order scan (`-- N` caps the count, `-- --refresh` re-scans) |
-| `npm run search -- "חלב 3%"` | Read-only product search (find a replacement for an unavailable item) |
+| `npm run search -- "חלב 3%"` | Read-only product search; takes one or many queries in a single login (`-- --limit N "q1" "q2"`) |
 | `npm run sample-stats` | Write a sample `order-stats.json` (aligned to the sample dictionary) to try the suggester without a scan |
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
 | `npm run typecheck` | Type-check the scripts |
@@ -202,6 +209,31 @@ npm run search -- "חמאת בוטנים"   # read-only search for a replacement
 ```
 
 Pick an in-stock result and the skill updates that entry's product code (מק"ט) and clears the flag.
+
+### Removing items and cart cleanup
+
+Ask to *"remove the olive oil"* and the skill takes it out — then double-checks the cart to confirm
+it's actually gone, the same way adds are verified.
+
+```bash
+npm run remove -- "olive oil" "honey"     # by alias
+npm run remove -- "P_8076800195057"       # by raw product code
+```
+
+It also handles *"add my list and remove anything in the cart that isn't on it."* It reads your
+cart, works out what's on your list versus what isn't, and **shows you exactly what it will remove
+before deleting anything** — removals are hard to undo, so it confirms first.
+
+### When something isn't on your list
+
+If you ask for something that isn't in your product list, the skill doesn't silently add a guess.
+With your go-ahead it searches Shufersal (in Hebrew, where the catalogue lives), shows the in-stock
+options, lets you pick, and **saves your choice to your list** so it matches directly next time. The
+search runs every term in a single login:
+
+```bash
+npm run search -- --limit 6 "גבינת פטה" "עגבניות שרי" "מפיות"
+```
 
 ### Your product list (`product-dictionary.json`)
 
@@ -268,18 +300,20 @@ CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Claude skill instructions — how to parse requests, match products, add to cart, suggest, and handle unavailable items |
+| `SKILL.md` | Claude skill instructions — how to parse requests, match products, add/remove, suggest, find unmatched items, and handle unavailable ones |
 | `product-dictionary.json` | Your curated product list with aliases — **personal, gitignored** (create it on first use) |
 | `product-dictionary.sample.json` | 10-item starter (tracked) — copy to `product-dictionary.json` to begin |
-| `scripts/add-to-cart.ts` | The runner — matches items, adds them (chunked + retried), verifies each add, flags unavailable items |
+| `scripts/add-to-cart.ts` | The add runner — matches items, adds them (chunked + retried), verifies each add, flags unavailable items |
+| `scripts/remove-from-cart.ts` | The remove runner — removes by alias or product code, verifies each item is gone |
 | `scripts/view-cart.ts` | Read-only cart viewer |
 | `scripts/suggest.ts` | Cadence-based restock suggestions from the cached order scan |
-| `scripts/search.ts` | Read-only product search (find a replacement) |
+| `scripts/search.ts` | Read-only product search; one or many queries per login (find a product not on your list, or a replacement) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
 | `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
 | `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk` — each with unit tests |
 | `order-stats.json` | Suggester cache — **personal, gitignored** |
-| `logs/add-to-cart.log` | Per-run trace from the runner (gitignored) |
+| `logs/add-to-cart.log` | Per-run trace from the add runner (gitignored) |
+| `logs/remove-from-cart.log` | Per-run trace from the remove runner (gitignored) |
 | `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree — don't edit (see "The vendored library" above) |
 | `evals/` | Test cases for skill evaluation |
 | `.env.example` | Template for credentials; copy to `.env` |
