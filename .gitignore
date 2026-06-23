@@ -9,3 +9,6 @@ order-stats.json
 # Your real dictionary is personal (reveals your shopping habits) — keep it local.
 # product-dictionary.sample.json is the tracked, shareable starter.
 product-dictionary.json
+
+# Internal design/spec docs from the superpowers workflow — kept locally, not published.
+docs/superpowers/
