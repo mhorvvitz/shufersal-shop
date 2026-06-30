@@ -284,6 +284,12 @@ managed browser-as-a-service provider. You're responsible for keeping that Chrom
 instance running and reachable from wherever you run the scripts; the skill itself
 doesn't manage or provision it.
 
+Most managed providers fold their auth token into the URL itself (e.g.
+`wss://chrome.browserless.io?token=YOUR_API_KEY`) — copy whatever connection URL your
+provider gives you as-is into `CHROME_WS_ENDPOINT`; there's no separate credential
+field to fill in. Treat that URL as a secret, the same as your Shufersal password: keep
+it out of version control (`.env` is already gitignored).
+
 ### Files
 
 | File | Purpose |
