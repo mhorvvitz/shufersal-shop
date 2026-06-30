@@ -11,6 +11,7 @@ import {
   isUnavailable,
   type DictionaryEntry,
 } from './lib/dictionary';
+import { loadCredentials, loadBrowserConnection } from './lib/browser-connection';
 
 // Bulk adds go through Shufersal's POST /cart/addGrid, which 500s on large
 // payloads and 405s under rate-limiting. We therefore add in small chunks,
@@ -25,13 +26,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+const { username: USERNAME, password: PASSWORD } = loadCredentials();
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
 if (!fs.existsSync(dictPath)) {
@@ -136,8 +131,8 @@ async function main() {
     ambiguous: ambiguous.map((a) => a.query),
   });
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const bot = new ShufersalBot(loadBrowserConnection());
+  const session = await bot.createSession(USERNAME, PASSWORD);
 
   try {
     // Snapshot the cart before adding so we can tell what each add actually changed.

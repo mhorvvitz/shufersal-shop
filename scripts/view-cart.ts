@@ -2,6 +2,7 @@ import { ShufersalBot } from 'shufersal-automation';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { loadCredentials, loadBrowserConnection } from './lib/browser-connection';
 
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -15,18 +16,12 @@ const dictionary: DictionaryEntry[] = fs.existsSync(dictPath)
   : [];
 const byCode = new Map(dictionary.map((e) => [e.id, e]));
 
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+const { username: USERNAME, password: PASSWORD } = loadCredentials();
 
 // Read-only: lists the current cart contents. Never touches checkout or time slots.
 async function main() {
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const bot = new ShufersalBot(loadBrowserConnection());
+  const session = await bot.createSession(USERNAME, PASSWORD);
 
   try {
     const cart = await session.getCartItems();

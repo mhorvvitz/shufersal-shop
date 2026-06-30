@@ -1,7 +1,7 @@
 ---
 name: shufersal-shop
 description: Add grocery products to a Shufersal online shopping cart using natural language. Use this skill whenever the user mentions adding groceries, food items, or products to their Shufersal cart, shopping list, or online grocery order. Triggers on phrases like "add milk and bread", "I need 3 yogurts", "put eggs in the cart", "buy some cheese", "get me 2 bottles of water", or any Hebrew grocery item names. Also use when the user wants to search for products on Shufersal, view their cart, remove items, or manage cart contents. Even if the user doesn't say "Shufersal" explicitly, use this skill when they mention grocery shopping in the context of this project.
-compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Also needs a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
+compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Also needs a Chrome instance (local via CHROME_PATH, or hosted/remote via CHROME_WS_ENDPOINT), Shufersal credentials in a local .env, and network access.
 metadata:
   version: 1.0.0
 ---
@@ -279,7 +279,7 @@ The runner (`scripts/add-to-cart.ts`):
 1. Loads `product-dictionary.json`
 2. Matches each CLI argument against aliases (exact, case-insensitive)
 3. Separates results into matched / unmatched / ambiguous
-4. Creates a bot (`headless: true`) and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
+4. Creates a bot and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, and either `CHROME_PATH` for local Chrome or `CHROME_WS_ENDPOINT` for a hosted/remote one)
 5. Snapshots the cart, adds matched items via `session.addToCart()` **in chunks** (retrying
    and bisecting a failing chunk to isolate a bad item), snapshots again, and verifies each
    item actually landed (looking up failures via `getProductByCode` for a reason)
