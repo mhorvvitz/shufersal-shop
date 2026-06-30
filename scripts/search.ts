@@ -1,17 +1,12 @@
 import { ShufersalBot } from 'shufersal-automation';
 import dotenv from 'dotenv';
 import path from 'path';
+import { loadCredentials, loadBrowserConnection } from './lib/browser-connection';
 
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+const { username: USERNAME, password: PASSWORD } = loadCredentials();
 
 // Read-only product search — one login, one OR many queries. Used to find a product when an
 // item isn't in the dictionary (the "unmatched item" flow) or when a saved product turns out
@@ -43,8 +38,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const bot = new ShufersalBot(loadBrowserConnection());
+  const session = await bot.createSession(USERNAME, PASSWORD);
   try {
     // One login, every query — searching many items one-login-per-query is slow and risks
     // rate-limiting, so the unmatched-item flow can pass them all at once.

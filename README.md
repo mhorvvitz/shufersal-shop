@@ -285,7 +285,8 @@ npm install
 ### Prerequisites
 
 - [Node.js](https://nodejs.org)
-- A local Google Chrome installation (set `CHROME_PATH` in `.env`)
+- A Chrome instance — either a local Google Chrome install (`CHROME_PATH`) or a
+  hosted/remote headless Chrome (`CHROME_WS_ENDPOINT`) — see below
 - A Shufersal online account
 
 `.env` holds your credentials and is gitignored:
@@ -295,6 +296,31 @@ SHUFERSAL_USERNAME=your-username
 SHUFERSAL_PASSWORD=your-password
 CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
+
+### Using a hosted headless Chrome instead of local Chrome
+
+By default the scripts launch your local Chrome (`CHROME_PATH`). If you'd rather not
+keep a Chrome install around — e.g. running the skill on a machine without a desktop,
+or pointing it at an already-running browser — set `CHROME_WS_ENDPOINT` in `.env` to a
+Chrome DevTools WebSocket URL instead:
+
+```
+CHROME_WS_ENDPOINT=ws://your-host:9222/devtools/browser/<id>
+```
+
+When set, it takes precedence over `CHROME_PATH`: the bot connects to that existing
+Chrome (`puppeteer.connect()`) instead of launching a new one. Any Chrome that exposes
+a remote-debugging WebSocket endpoint works — a self-hosted
+[browserless](https://www.browserless.io/) or `chrome-headless-shell` container, or a
+managed browser-as-a-service provider. You're responsible for keeping that Chrome
+instance running and reachable from wherever you run the scripts; the skill itself
+doesn't manage or provision it.
+
+Most managed providers fold their auth token into the URL itself (e.g.
+`wss://chrome.browserless.io?token=YOUR_API_KEY`) — copy whatever connection URL your
+provider gives you as-is into `CHROME_WS_ENDPOINT`; there's no separate credential
+field to fill in. Treat that URL as a secret, the same as your Shufersal password: keep
+it out of version control (`.env` is already gitignored).
 
 ### Files
 
@@ -310,7 +336,7 @@ CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | `scripts/search.ts` | Read-only product search; one or many queries per login (find a product not on your list, or a replacement) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
 | `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
-| `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk` — each with unit tests |
+| `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk`, `browser-connection` — each with unit tests |
 | `order-stats.json` | Suggester cache — **personal, gitignored** |
 | `logs/add-to-cart.log` | Per-run trace from the add runner (gitignored) |
 | `logs/remove-from-cart.log` | Per-run trace from the remove runner (gitignored) |

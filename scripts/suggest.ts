@@ -24,6 +24,7 @@ import {
   type OrderStatsCache,
 } from './lib/order-stats';
 import { readDictionary, isUnavailable, type DictionaryEntry } from './lib/dictionary';
+import { loadCredentials, loadBrowserConnection } from './lib/browser-connection';
 
 // Load credentials from the skill's own .env (see README). Only needed for --refresh.
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -57,14 +58,9 @@ function parseArgs(argv: string[]): CliArgs {
 
 /** Open a session, scan, write the cache. Used only on the --refresh path. */
 async function refreshCache(ordersToScan: number): Promise<OrderStatsCache> {
-  const USERNAME = process.env['SHUFERSAL_USERNAME'];
-  const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-  const CHROME_PATH = process.env['CHROME_PATH'];
-  if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-    throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-  }
+  const { username: USERNAME, password: PASSWORD } = loadCredentials();
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
+  const bot = new ShufersalBot(loadBrowserConnection());
   const session = await bot.createSession(USERNAME, PASSWORD);
   try {
     const { stats, scannedOrders, medianOrderSize } = await scanOrderHistory(session, ordersToScan);
