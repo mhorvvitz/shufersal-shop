@@ -148,6 +148,44 @@ Place this directory under your Claude skills location — a `shufersal-shop` fo
 `.claude/skills/`, or a junction/symlink pointing at this repo (so edits stay in one place). The
 skill is invoked by the `name` in `SKILL.md`, so it shows up as `/shufersal-shop`.
 
+### Install as an MCP server
+
+Instead of (or alongside) the skill, you can run this as an [MCP](https://modelcontextprotocol.io)
+server, exposing the same 4 capabilities as tools any MCP-compatible client can call directly —
+no skill markdown involved. It runs over stdio, so the client launches it as a local subprocess;
+nothing needs to be hosted.
+
+Add it to your MCP client's config (e.g. Claude Code's `.mcp.json`, or Claude Desktop's
+`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "shufersal-shop": {
+      "command": "npx",
+      "args": ["tsx", "/absolute/path/to/shufersal-shop/scripts/mcp-server.ts"]
+    }
+  }
+}
+```
+
+It exposes exactly 4 tools, mirroring the CLI scripts above:
+
+| Tool | Mirrors | What it does |
+|------|---------|--------------|
+| `add_to_cart` | `npm run add` | Match items against the product dictionary and add them (chunked, retried, verified) |
+| `view_cart` | `npm run view` | Read-only: list current cart contents |
+| `search_products` | `npm run search` | Read-only product search (find a replacement for an unavailable item) |
+| `suggest_restock` | `npm run suggest` | Cadence-based restock suggestions, optionally refreshing the order-history cache |
+
+It still needs `.env` (credentials and a Chrome instance) and `product-dictionary.json` to exist
+— same preconditions as the CLI scripts. It never registers a tool for `createOrder`,
+`selectTimeSlot`, or anything checkout/payment-related: the safety boundary is structural here,
+not just a prompt instruction.
+
+Try it locally with `npm run mcp` (it speaks JSON-RPC over stdio, so it's not meant to be run
+interactively — use an MCP client, or the [MCP Inspector](https://modelcontextprotocol.io/legacy/tools/inspector), to talk to it).
+
 ### Scripts
 
 | Command | What it does |
@@ -158,6 +196,7 @@ skill is invoked by the `name` in `SKILL.md`, so it shows up as `/shufersal-shop
 | `npm run search -- "חלב 3%"` | Read-only product search (find a replacement for an unavailable item) |
 | `npm run sample-stats` | Write a sample `order-stats.json` (aligned to the sample dictionary) to try the suggester without a scan |
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
+| `npm run mcp` | Start the MCP server (stdio transport) — see "Install as an MCP server" above |
 | `npm run typecheck` | Type-check the scripts |
 
 (You can also call scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.) Run the
@@ -303,7 +342,8 @@ it out of version control (`.env` is already gitignored).
 | `scripts/search.ts` | Read-only product search (find a replacement) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
 | `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
-| `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk`, `browser-connection` — each with unit tests |
+| `scripts/mcp-server.ts` | MCP server (stdio) exposing `add_to_cart`, `view_cart`, `search_products`, `suggest_restock` |
+| `scripts/lib/` | Shared helpers and core logic: `order-stats`, `dictionary`, `chunk`, `browser-connection`, `file-logger`, and `*-core` modules (the logic shared by each CLI script and its MCP tool) — each with unit tests |
 | `order-stats.json` | Suggester cache — **personal, gitignored** |
 | `logs/add-to-cart.log` | Per-run trace from the runner (gitignored) |
 | `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree — don't edit (see "The vendored library" above) |

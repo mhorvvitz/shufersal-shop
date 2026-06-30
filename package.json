@@ -10,10 +10,13 @@
     "suggest": "tsx scripts/suggest.ts",
     "search": "tsx scripts/search.ts",
     "sample-stats": "tsx scripts/sample-stats.ts",
+    "mcp": "tsx scripts/mcp-server.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "shufersal-automation": "file:vendor/shufersal-automation"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "shufersal-automation": "file:vendor/shufersal-automation",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
