@@ -1,0 +1,11 @@
+node_modules
+.git
+.env
+*.log
+logs
+dictionary-draft.json
+# Personal files are mounted at runtime, never baked into the image.
+product-dictionary.json
+order-stats.json
+evals
+docs

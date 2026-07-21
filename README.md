@@ -186,6 +186,57 @@ not just a prompt instruction.
 Try it locally with `npm run mcp` (it speaks JSON-RPC over stdio, so it's not meant to be run
 interactively — use an MCP client, or the [MCP Inspector](https://modelcontextprotocol.io/legacy/tools/inspector), to talk to it).
 
+### Host it: a shared MCP server + a Telegram bot
+
+The stdio server above is launched locally by each client. To reach the same four tools from
+somewhere else — a phone, a Telegram chat, a web client — you host the server over HTTP and point
+clients at its URL. This repo ships both halves:
+
+- **`npm run mcp:http`** — the same four tools over **Streamable HTTP** instead of stdio
+  (`scripts/mcp-server-http.ts`). Every request must carry `Authorization: Bearer $MCP_AUTH_TOKEN`;
+  the server refuses to start without that token. There's an unauthenticated `/healthz` probe. The
+  safety boundary is identical — no checkout tool exists to call.
+- **`npm run bot`** — a **Telegram bot** (`bot/`) that turns "add milk and 2 pitas" into tool calls.
+  It connects to the HTTP server as an MCP client and hands the tools to a **free
+  [Google Gemini](https://aistudio.google.com/apikey) model** (`gemini-2.5-flash` by default), which
+  runs the same match-don't-guess, report-from-verification flow you get in Claude Code. Only chat
+  IDs in `TELEGRAM_ALLOWED_CHAT_IDS` are answered — the bot refuses to start with an empty allowlist.
+
+```
+Telegram ── Gemini (free) ──┐
+                            ├─ MCP server (HTTP, bearer token) ─ lib/*-core ─ hosted Chrome ─ Shufersal
+claude mcp add (HTTP) ──────┘
+```
+
+**Point Claude Code at the hosted server** (instead of the stdio config above):
+
+```bash
+claude mcp add --transport http shufersal-shop https://your-host/mcp \
+  --header "Authorization: Bearer $MCP_AUTH_TOKEN"
+```
+
+**Run both with Docker** (no local Chrome needed — the container connects to your hosted Chrome via
+`CHROME_WS_ENDPOINT`):
+
+```bash
+cp .env.example .env      # fill in Shufersal creds, CHROME_WS_ENDPOINT, MCP_AUTH_TOKEN,
+                          #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, GEMINI_API_KEY
+mkdir -p data && cp product-dictionary.json data/   # personal files live on the mounted volume
+docker compose up --build
+```
+
+`docker-compose.yml` runs the MCP server and the bot as two services sharing one image and a `./data`
+volume (for `product-dictionary.json` / `order-stats.json`, pointed at by `SHUFERSAL_DICT_PATH` /
+`SHUFERSAL_ORDER_STATS_PATH`). Any Docker host works; a small always-on VM (e.g.
+[Fly.io](https://fly.io) or Railway) gives you the public HTTPS URL the tools need. All secrets come
+from the environment — see `.env.example` for the full list.
+
+> **What flows where.** Your Shufersal credentials and cart never leave the MCP server; only the four
+> tools' inputs/outputs reach Gemini. The free Gemini tier may use prompts for training, so your chat
+> text passes through Google — the bot's model layer is one small module (`bot/agent.ts`) and can be
+> swapped for another provider if that matters to you. claude.ai's own custom connectors additionally
+> require OAuth, which this bearer-token server doesn't implement (yet).
+
 ### Scripts
 
 | Command | What it does |
@@ -197,6 +248,8 @@ interactively — use an MCP client, or the [MCP Inspector](https://modelcontext
 | `npm run sample-stats` | Write a sample `order-stats.json` (aligned to the sample dictionary) to try the suggester without a scan |
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
 | `npm run mcp` | Start the MCP server (stdio transport) — see "Install as an MCP server" above |
+| `npm run mcp:http` | Start the MCP server over HTTP (bearer-auth) — see "Host it" above |
+| `npm run bot` | Start the Telegram bot (needs the HTTP server running) — see "Host it" above |
 | `npm run typecheck` | Type-check the scripts |
 
 (You can also call scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.) Run the
@@ -343,7 +396,10 @@ it out of version control (`.env` is already gitignored).
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
 | `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
 | `scripts/mcp-server.ts` | MCP server (stdio) exposing `add_to_cart`, `view_cart`, `search_products`, `suggest_restock` |
-| `scripts/lib/` | Shared helpers and core logic: `order-stats`, `dictionary`, `chunk`, `browser-connection`, `file-logger`, and `*-core` modules (the logic shared by each CLI script and its MCP tool) — each with unit tests |
+| `scripts/mcp-server-http.ts` | Same four tools over Streamable HTTP with bearer-token auth (for hosting) |
+| `scripts/lib/` | Shared helpers and core logic: `order-stats`, `dictionary`, `chunk`, `browser-connection`, `file-logger`, `mcp-tools` (the shared tool registration), `http-auth`, and `*-core` modules — each with unit tests |
+| `bot/` | Telegram bot: `config`, `system-prompt`, `agent` (Gemini + MCP client), and `index` (grammY wiring) |
+| `Dockerfile` / `docker-compose.yml` | Container image and a two-service (server + bot) compose setup — see "Host it" above |
 | `order-stats.json` | Suggester cache — **personal, gitignored** |
 | `logs/add-to-cart.log` | Per-run trace from the runner (gitignored) |
 | `vendor/shufersal-automation/` | Vendored library (MIT) as a git subtree — don't edit (see "The vendored library" above) |

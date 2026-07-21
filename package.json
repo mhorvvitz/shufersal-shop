@@ -12,11 +12,14 @@
     "sample-stats": "tsx scripts/sample-stats.ts",
     "mcp": "tsx scripts/mcp-server.ts",
     "mcp:http": "tsx scripts/mcp-server-http.ts",
+    "bot": "tsx bot/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^2.13.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
+    "grammy": "^1.45.1",
     "shufersal-automation": "file:vendor/shufersal-automation",
     "zod": "^4.4.3"
   },

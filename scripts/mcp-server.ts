@@ -8,7 +8,8 @@ import { createFileLogger } from './lib/file-logger';
 // Load credentials from the skill's own .env (see README).
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
+const dictPath =
+  process.env.SHUFERSAL_DICT_PATH || path.join(__dirname, '..', 'product-dictionary.json');
 const logFile = path.join(__dirname, '..', 'logs', 'add-to-cart.log');
 const log = createFileLogger(logFile);
 

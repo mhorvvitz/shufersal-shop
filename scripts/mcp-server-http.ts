@@ -12,7 +12,10 @@ import { bearerAuth } from './lib/http-auth';
 // dotenv only fills in vars that aren't already set.
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
+// Defaults to the project root; override with SHUFERSAL_DICT_PATH to read from a
+// mounted volume in a container (see the deployment docs).
+const dictPath =
+  process.env.SHUFERSAL_DICT_PATH || path.join(__dirname, '..', 'product-dictionary.json');
 const logFile = path.join(__dirname, '..', 'logs', 'add-to-cart.log');
 const log = createFileLogger(logFile);
 

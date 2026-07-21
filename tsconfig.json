@@ -14,5 +14,5 @@
       "~/*": ["vendor/shufersal-automation/src/*"]
     }
   },
-  "include": ["scripts/**/*.ts"]
+  "include": ["scripts/**/*.ts", "bot/**/*.ts"]
 }
