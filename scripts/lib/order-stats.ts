@@ -27,7 +27,10 @@ export interface OrderStatsCache extends CacheMeta {
   stats: ProductStat[];
 }
 
-const CACHE_PATH = path.join(__dirname, '..', '..', 'order-stats.json');
+// Defaults to the project root, but can be pointed at a mounted volume in a
+// container via SHUFERSAL_ORDER_STATS_PATH (see the deployment docs).
+const CACHE_PATH =
+  process.env['SHUFERSAL_ORDER_STATS_PATH'] || path.join(__dirname, '..', '..', 'order-stats.json');
 
 // Line items that aren't real products: the online delivery fee, bottle deposits, etc.
 // They appear in most orders and would otherwise pollute the dictionary and suggestions.

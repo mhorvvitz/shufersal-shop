@@ -9,3 +9,6 @@ order-stats.json
 # Your real dictionary is personal (reveals your shopping habits) — keep it local.
 # product-dictionary.sample.json is the tracked, shareable starter.
 product-dictionary.json
+
+# Docker volume dir for personal files (mounted into the containers).
+data/

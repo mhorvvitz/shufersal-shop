@@ -1,0 +1,37 @@
+# Runs the MCP server and the Telegram bot together, sharing one image and one
+# volume for the personal files (product-dictionary.json, order-stats.json).
+#
+# Setup:
+#   1. cp .env.example .env  and fill in the values (Shufersal creds,
+#      CHROME_WS_ENDPOINT, MCP_AUTH_TOKEN, Telegram + Gemini).
+#   2. Put your product-dictionary.json (and optionally order-stats.json) in
+#      ./data/  — that directory is mounted into both services.
+#   3. docker compose up --build
+services:
+  mcp:
+    build: .
+    command: npm run mcp:http
+    env_file: .env
+    environment:
+      MCP_HTTP_PORT: 3000
+      SHUFERSAL_DICT_PATH: /data/product-dictionary.json
+      SHUFERSAL_ORDER_STATS_PATH: /data/order-stats.json
+    volumes:
+      - ./data:/data
+    # Not published to the host by default — only the bot needs to reach it, over
+    # the internal compose network. Uncomment to expose it (e.g. for claude mcp
+    # add --transport http against http://localhost:3000/mcp):
+    # ports:
+    #   - "3000:3000"
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: npm run bot
+    env_file: .env
+    environment:
+      # Reach the MCP service over the internal network, not localhost.
+      MCP_SERVER_URL: http://mcp:3000/mcp
+    depends_on:
+      - mcp
+    restart: unless-stopped
