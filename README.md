@@ -351,6 +351,68 @@ npm run check-browser -- --no-login  # config + browser only, no credentials nee
 - **Sessions cost money and are ended on exit.** Each command opens a session and closes it in a
   `finally` block, so a crashed run shouldn't leave a session billing.
 
+### Running from a phone (Claude Code cloud sessions)
+
+With a hosted browser configured, the skill can run in a [Claude Code cloud
+session](https://code.claude.com/docs/en/claude-code-on-the-web), which you can drive from the
+Claude mobile app. Two things need arranging first.
+
+**1. Network access.** Cloud environments default to a "Trusted" allowlist that covers package
+registries and GitHub only. In the environment settings at [claude.ai/code](https://claude.ai/code),
+set **Network access** to **Custom**, keep *Also include default list of common package managers*
+checked, and add:
+
+```
+*.browserless.io
+*.shufersal.co.il
+shufersal.co.il
+```
+
+Only the first is strictly required when `BROWSER_PROVIDER=browserless`: the page navigation happens
+inside the *remote* browser, so Shufersal traffic leaves Browserless's network, not the session's.
+The Shufersal entries cost nothing and save a confusing debugging session if you ever switch
+providers.
+
+**2. Your personal data.** A cloud session starts from a fresh clone, and
+`product-dictionary.json` is gitignored — so it won't exist, and the add runner will refuse to
+match anything. Since this repo is public, the dictionary can't simply be committed here: it's a
+detailed record of what your household buys.
+
+Keep it in a **separate private repo** instead, holding just the personal files:
+
+```
+shufersal-shop-data/
+├── product-dictionary.json
+└── order-stats.json          ← optional; the suggester cache
+```
+
+Create it from the machine that already has those files:
+
+```bash
+mkdir shufersal-shop-data && cd shufersal-shop-data && git init
+cp ../shufersal-shop/product-dictionary.json .
+cp ../shufersal-shop/order-stats.json . 2>/dev/null || true
+git add -A && git commit -m "Personal Shufersal data"
+# create a PRIVATE repo on GitHub, then:
+git remote add origin git@github.com:<you>/shufersal-shop-data.git
+git push -u origin main
+```
+
+Attach **both** repos to the cloud session. The `SessionStart` hook in `.claude/settings.json`
+then runs `scripts/link-personal-data.sh`, which finds the data repo as a sibling checkout and
+symlinks the files into place. Symlinks rather than copies, so when Claude curates the dictionary
+— adding an alias, swapping a discontinued product code — the edit lands in the data repo where
+you can commit it.
+
+Set `SHUFERSAL_DATA_DIR` if your checkout lives somewhere else. If no data repo is found the hook
+says so and continues; commands that don't need a dictionary (`search`, `view-cart`,
+`check-browser`) work regardless.
+
+> **Keep credentials out of the data repo.** Put them in the environment's **Environment
+> variables** field instead. Anything committed to git stays in its history permanently, so
+> rotating a password there doesn't actually retract the old one — and cloud session transcripts
+> can be shared, carrying private-repo file contents with them.
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org)

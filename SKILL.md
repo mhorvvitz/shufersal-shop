@@ -56,6 +56,13 @@ to add items — stop and help the user create it first:
 > curate it together), or you can start from the bundled 10-item sample
 > (`product-dictionary.sample.json`). Which would you prefer?"
 
+**In a cloud session, check for a data repo before offering to rebuild.** The dictionary is
+gitignored and this repo is public, so personal data lives in a separate private repo that the
+`SessionStart` hook symlinks in. A missing dictionary there usually means that repo wasn't
+attached to the session — not that the user needs to build a new one. Run
+`bash scripts/link-personal-data.sh` to see what it found, and say so rather than starting a
+20-order rescan that would silently duplicate work they've already done.
+
 Once it exists, check the product dictionary at `product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
 
 Each entry looks like:
@@ -356,6 +363,8 @@ shufersal-shop/
 │   ├── search.ts             ← read-only product search (one login, one or many queries)
 │   ├── build-dictionary.ts   ← scans order history to seed the dictionary
 │   ├── check-browser.ts      ← doctor: verifies the configured browser (local or hosted)
+│   ├── link-personal-data.sh ← symlinks the dictionary in from a private data repo
+│   ├── session-start.sh      ← SessionStart hook: installs deps (cloud) + links data
 │   └── lib/                  ← shared helpers (browser, env, order-stats, dictionary, chunk)
 ├── order-stats.json          ← suggester cache (personal, gitignored; built by `suggest --refresh`)
 ├── vendor/
