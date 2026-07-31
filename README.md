@@ -408,6 +408,28 @@ Set `SHUFERSAL_DATA_DIR` if your checkout lives somewhere else. If no data repo 
 says so and continues; commands that don't need a dictionary (`search`, `view-cart`,
 `check-browser`) work regardless.
 
+**Use the same layout on your own machine** so laptop and cloud edits converge instead of
+drifting. One-time move — put the real files in the data repo and link them back:
+
+```bash
+cd shufersal-shop
+mv product-dictionary.json ../shufersal-shop-data/
+mv order-stats.json ../shufersal-shop-data/ 2>/dev/null || true
+npm run link-data     # symlinks them back into place
+```
+
+From then on every edit — yours or Claude's — lands in the data repo's working tree, and syncing
+is one command:
+
+```bash
+npm run sync-data
+```
+
+It commits **only** the two data files, pulls whatever another machine or cloud session pushed
+(rebase, so history stays linear), and pushes. On a genuine conflict it stops and tells you
+rather than guessing which version of your dictionary wins. The skill runs this itself after it
+curates the dictionary or refreshes the suggester cache.
+
 > **Keep credentials out of the data repo.** Put them in the environment's **Environment
 > variables** field instead. Anything committed to git stays in its history permanently, so
 > rotating a password there doesn't actually retract the old one — and cloud session transcripts

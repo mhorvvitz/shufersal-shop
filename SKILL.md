@@ -56,6 +56,13 @@ to add items — stop and help the user create it first:
 > curate it together), or you can start from the bundled 10-item sample
 > (`product-dictionary.sample.json`). Which would you prefer?"
 
+**After changing the dictionary or the suggester cache, sync the data repo.** When the personal
+files live in the private data repo (they're symlinks — `ls -l product-dictionary.json` shows
+it), run `npm run sync-data` after curating the dictionary (new entries, added aliases, swapped
+product codes, unavailable flags) or after `suggest --refresh`. It commits just those two files,
+pulls what other machines pushed, and pushes — so the laptop and cloud sessions stay converged.
+If it reports a conflict, tell the user; never resolve a conflicted dictionary by guessing.
+
 **In a cloud session, check for a data repo before offering to rebuild.** The dictionary is
 gitignored and this repo is public, so personal data lives in a separate private repo that the
 `SessionStart` hook symlinks in. A missing dictionary there usually means that repo wasn't
@@ -364,6 +371,7 @@ shufersal-shop/
 │   ├── build-dictionary.ts   ← scans order history to seed the dictionary
 │   ├── check-browser.ts      ← doctor: verifies the configured browser (local or hosted)
 │   ├── link-personal-data.sh ← symlinks the dictionary in from a private data repo
+│   ├── sync-personal-data.sh ← commits/pulls/pushes the data repo (npm run sync-data)
 │   ├── session-start.sh      ← SessionStart hook: installs deps (cloud) + links data
 │   └── lib/                  ← shared helpers (browser, env, order-stats, dictionary, chunk)
 ├── order-stats.json          ← suggester cache (personal, gitignored; built by `suggest --refresh`)

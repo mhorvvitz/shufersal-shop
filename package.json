@@ -12,6 +12,8 @@
     "search": "tsx scripts/search.ts",
     "sample-stats": "tsx scripts/sample-stats.ts",
     "check-browser": "tsx scripts/check-browser.ts",
+    "link-data": "bash scripts/link-personal-data.sh",
+    "sync-data": "bash scripts/sync-personal-data.sh",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test scripts/lib/*.test.ts scripts/*.test.ts"
   },
