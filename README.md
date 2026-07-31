@@ -312,9 +312,12 @@ BROWSER_PROVIDER=browserless
 BROWSERLESS_TOKEN=your-token
 # Defaults to the Amsterdam region (closest of Browserless's SFO/LON/AMS to Israel).
 # BROWSERLESS_URL=wss://production-ams.browserless.io
+# Shufersal geo-blocks Browserless's datacenter IPs (see "Region matters" below), so in
+# practice you need the residential proxy pinned to Israel:
+BROWSERLESS_URL=wss://production-ams.browserless.io?proxy=residential&proxyCountry=il
 ```
 
-**Browserbase** — the only provider that can give you an Israeli exit IP, via its proxy option:
+**Browserbase** — can also give you an Israeli exit IP, via its proxy option:
 
 ```
 BROWSER_PROVIDER=browserbase
@@ -341,10 +344,14 @@ npm run check-browser -- --no-login  # config + browser only, no credentials nee
 
 **Worth knowing before you pay for a plan:**
 
-- **Region matters.** Shufersal is an Israeli retailer and can geo-block or geo-redirect foreign
-  traffic. Browserless has no Israeli region (SFO/LON/AMS only), so Amsterdam is the closest you
-  can get; if you run into blocks, Browserbase with `BROWSERBASE_PROXY_COUNTRY=IL` is the option
-  that puts you on an Israeli IP.
+- **Region matters — an Israeli exit IP is required, not just nice to have.** Shufersal serves an
+  "access from selected countries only" page to foreign IPs, with no login form on it, so the
+  doctor fails waiting for `#j_username`. Browserless has no Israeli region (SFO/LON/AMS only) and
+  its Amsterdam datacenter IPs are blocked; what works is routing the session through Browserless's
+  residential proxy pinned to Israel, by adding `?proxy=residential&proxyCountry=il` to
+  `BROWSERLESS_URL` (the skill appends the token correctly to a URL that already has query
+  params). Residential proxy traffic is billed per MB on top of session units. On Browserbase,
+  `BROWSERBASE_PROXY_COUNTRY=IL` does the same job.
 - **Your credentials travel to the provider.** The Shufersal login is typed into a browser running
   on someone else's infrastructure. That's inherent to any hosted-browser setup — decide if you're
   comfortable with it before switching.
@@ -355,7 +362,7 @@ npm run check-browser -- --no-login  # config + browser only, no credentials nee
 
 With a hosted browser configured, the skill can run in a [Claude Code cloud
 session](https://code.claude.com/docs/en/claude-code-on-the-web), which you can drive from the
-Claude mobile app. Two things need arranging first.
+Claude mobile app. Three things need arranging first.
 
 **1. Network access.** Cloud environments default to a "Trusted" allowlist that covers package
 registries and GitHub only. In the environment settings at [claude.ai/code](https://claude.ai/code),
@@ -398,6 +405,12 @@ git remote add origin git@github.com:<you>/shufersal-shop-data.git
 git push -u origin main
 ```
 
+**No files yet? The repo can start empty.** If you've never built a dictionary, just create the
+private repo on GitHub with nothing in it and attach it alongside this one. The link script
+symlinks the two filenames anyway (dangling until written), so the first `build-dictionary` /
+curation done *in the cloud session* creates the files directly in the data repo's working tree,
+and `npm run sync-data` commits and pushes them from there.
+
 Attach **both** repos to the cloud session. The `SessionStart` hook in `.claude/settings.json`
 then runs `scripts/link-personal-data.sh`, which finds the data repo as a sibling checkout and
 symlinks the files into place. Symlinks rather than copies, so when Claude curates the dictionary
@@ -406,7 +419,8 @@ you can commit it.
 
 Set `SHUFERSAL_DATA_DIR` if your checkout lives somewhere else. If no data repo is found the hook
 says so and continues; commands that don't need a dictionary (`search`, `view-cart`,
-`check-browser`) work regardless.
+`check-browser`) work regardless. If a session ever reports the dictionary missing even though
+your data repo is attached, run `npm run link-data` by hand — it's idempotent.
 
 **Use the same layout on your own machine** so laptop and cloud edits converge instead of
 drifting. One-time move — put the real files in the data repo and link them back:
@@ -429,6 +443,24 @@ It commits **only** the two data files, pulls whatever another machine or cloud 
 (rebase, so history stays linear), and pushes. On a genuine conflict it stops and tells you
 rather than guessing which version of your dictionary wins. The skill runs this itself after it
 curates the dictionary or refreshes the suggester cache.
+
+**3. Credentials and browser config.** A fresh clone has no `.env`, so in a cloud session the
+environment's **Environment variables** field (in the same settings page as network access) is
+the only place these can come from. Set all five:
+
+```
+SHUFERSAL_USERNAME=your@email.address     ← the login form wants an email
+SHUFERSAL_PASSWORD=your-password
+BROWSER_PROVIDER=browserless
+BROWSERLESS_TOKEN=your-token
+BROWSERLESS_URL=wss://production-ams.browserless.io?proxy=residential&proxyCountry=il
+```
+
+(Or the Browserbase / `cdp` equivalents from the [hosted-browser
+section](#running-without-a-local-chrome-hosted-headless-browser).) Note that environment
+variables are injected when a session's container starts — **editing them affects new sessions
+only**, so after changing one, start a fresh session rather than re-running in the old one. Verify
+the setup from the session itself with `npm run check-browser`.
 
 > **Keep credentials out of the data repo.** Put them in the environment's **Environment
 > variables** field instead. Anything committed to git stays in its history permanently, so

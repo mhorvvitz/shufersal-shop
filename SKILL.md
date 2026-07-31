@@ -410,7 +410,7 @@ in `.env`, and **you never pass it per-command** — the runners read it themsel
 | `BROWSER_PROVIDER` | What it uses | Also needs |
 |--------------------|--------------|------------|
 | `local` (default)  | Chrome on this machine | `CHROME_PATH` (and `CHROME_ARGS` if Chrome won't start) |
-| `browserless`      | A Browserless instance | `BROWSERLESS_TOKEN` (`BROWSERLESS_URL` to change region/self-host) |
+| `browserless`      | A Browserless instance | `BROWSERLESS_TOKEN` (`BROWSERLESS_URL` to change region/self-host; hosted plans need `?proxy=residential&proxyCountry=il` on it — Shufersal geo-blocks their datacenter IPs) |
 | `browserbase`      | A Browserbase session | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` (`BROWSERBASE_PROXY_COUNTRY=IL`) |
 | `cdp`              | Any CDP websocket you run | `BROWSER_WS_ENDPOINT` |
 

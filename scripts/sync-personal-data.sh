@@ -38,14 +38,16 @@ fi
 cd "$data_dir"
 echo "sync-personal-data: syncing $data_dir" >&2
 
-# Copy mode (Windows without symlink support): the skill dir holds real files, not links,
-# and the runners edit those. Bring their changes into the data repo before committing.
+# Copy mode: the skill dir holds a real file, not a link — either Windows without symlink
+# support, or a file that was created before link-personal-data.sh ran (bootstrap). Bring
+# it into the data repo before committing; a file the data repo doesn't have yet is copied
+# in rather than skipped, so a first-ever build still ends up synced.
 copy_mode=0
 for file in "${FILES[@]}"; do
   skill_file="$SKILL_DIR/$file"
-  if [ -f "$skill_file" ] && [ ! -L "$skill_file" ] && [ -f "$data_dir/$file" ]; then
+  if [ -f "$skill_file" ] && [ ! -L "$skill_file" ]; then
     copy_mode=1
-    if ! cmp -s "$skill_file" "$data_dir/$file"; then
+    if [ ! -f "$data_dir/$file" ] || ! cmp -s "$skill_file" "$data_dir/$file"; then
       cp -f "$skill_file" "$data_dir/$file"
       echo "sync-personal-data: copied $file from the skill directory (copy mode)." >&2
     fi

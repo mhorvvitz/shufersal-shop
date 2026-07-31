@@ -49,15 +49,23 @@ for file in "${FILES[@]}"; do
   source_file="$data_dir/$file"
   target="$SKILL_DIR/$file"
 
-  if [ ! -e "$source_file" ]; then
-    echo "  - $file: not in the data repo, skipping" >&2
-    continue
-  fi
-
   # A real file here was put there deliberately (the normal local setup). Never clobber it;
   # only replace a stale symlink we would have created ourselves.
   if [ -e "$target" ] && [ ! -L "$target" ]; then
     echo "  - $file: already present locally, leaving it alone" >&2
+    continue
+  fi
+
+  if [ ! -e "$source_file" ]; then
+    # Bootstrap: the data repo exists but doesn't hold this file yet (first-ever build,
+    # done in the cloud). Link anyway — writes go through the dangling symlink and create
+    # the file in the data repo, so sync-data can commit it instead of it dying with the
+    # container. Needs real symlinks; without them (Windows) there is nothing to copy yet.
+    if ln -sfn "$source_file" "$target" 2>/dev/null && [ -L "$target" ]; then
+      echo "  - $file: not in the data repo yet — linked; the first build will create it there" >&2
+    else
+      echo "  - $file: not in the data repo yet, and symlinks unavailable — skipping" >&2
+    fi
     continue
   fi
 
