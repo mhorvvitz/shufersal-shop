@@ -1,8 +1,8 @@
-import { ShufersalBot } from 'shufersal-automation';
 import type { CartItemToAdd } from 'shufersal-automation';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { requireCredentials } from './lib/env';
+import { createBot } from './lib/browser';
 import { chunk, bisect } from './lib/chunk';
 import {
   readDictionary,
@@ -22,16 +22,8 @@ const RETRY_BACKOFF_MS = 1500; // base backoff between chunk retries (grows line
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// Load credentials from the skill's own .env (see README).
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
-
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+// Importing lib/env loads the skill's own .env (see README).
+const { username: USERNAME, password: PASSWORD } = requireCredentials();
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
 if (!fs.existsSync(dictPath)) {
@@ -136,8 +128,9 @@ async function main() {
     ambiguous: ambiguous.map((a) => a.query),
   });
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const browser = await createBot();
+  log('Browser ready', { provider: browser.provider, using: browser.description });
+  const session = await browser.bot.createSession(USERNAME, PASSWORD);
 
   try {
     // Snapshot the cart before adding so we can tell what each add actually changed.
@@ -345,7 +338,7 @@ async function main() {
     console.log('RESULT_JSON_END');
   } finally {
     await session.close();
-    await bot.terminate();
+    await browser.close();
   }
 }
 

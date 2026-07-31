@@ -1,5 +1,3 @@
-import { ShufersalBot } from 'shufersal-automation';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -24,9 +22,10 @@ import {
   type OrderStatsCache,
 } from './lib/order-stats';
 import { readDictionary, isUnavailable, type DictionaryEntry } from './lib/dictionary';
+import { requireCredentials } from './lib/env';
+import { createBot } from './lib/browser';
 
-// Load credentials from the skill's own .env (see README). Only needed for --refresh.
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Importing lib/env loads the skill's own .env (see README). Only needed for --refresh.
 
 const dictPath = path.join(__dirname, '..', 'product-dictionary.json');
 
@@ -57,15 +56,11 @@ function parseArgs(argv: string[]): CliArgs {
 
 /** Open a session, scan, write the cache. Used only on the --refresh path. */
 async function refreshCache(ordersToScan: number): Promise<OrderStatsCache> {
-  const USERNAME = process.env['SHUFERSAL_USERNAME'];
-  const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-  const CHROME_PATH = process.env['CHROME_PATH'];
-  if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-    throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-  }
+  const { username, password } = requireCredentials();
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME, PASSWORD);
+  const browser = await createBot();
+  console.error(`Browser: ${browser.description}`);
+  const session = await browser.bot.createSession(username, password);
   try {
     const { stats, scannedOrders, medianOrderSize } = await scanOrderHistory(session, ordersToScan);
     const meta = { scannedOrders, medianOrderSize, generatedAt: todayISO() };
@@ -74,7 +69,7 @@ async function refreshCache(ordersToScan: number): Promise<OrderStatsCache> {
     return { ...meta, stats };
   } finally {
     await session.close();
-    await bot.terminate();
+    await browser.close();
   }
 }
 
