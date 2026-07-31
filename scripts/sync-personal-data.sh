@@ -38,6 +38,20 @@ fi
 cd "$data_dir"
 echo "sync-personal-data: syncing $data_dir" >&2
 
+# Copy mode (Windows without symlink support): the skill dir holds real files, not links,
+# and the runners edit those. Bring their changes into the data repo before committing.
+copy_mode=0
+for file in "${FILES[@]}"; do
+  skill_file="$SKILL_DIR/$file"
+  if [ -f "$skill_file" ] && [ ! -L "$skill_file" ] && [ -f "$data_dir/$file" ]; then
+    copy_mode=1
+    if ! cmp -s "$skill_file" "$data_dir/$file"; then
+      cp -f "$skill_file" "$data_dir/$file"
+      echo "sync-personal-data: copied $file from the skill directory (copy mode)." >&2
+    fi
+  fi
+done
+
 # Commit FIRST: uncommitted edits are the normal state here (the runners write through
 # the symlinks), and `pull --rebase` refuses to run on top of a dirty tree.
 changed=0
@@ -84,4 +98,15 @@ if [ -n "$(git log --oneline "origin/$branch..$branch" 2>/dev/null || git log --
   fi
 else
   echo "sync-personal-data: already in sync." >&2
+fi
+
+# In copy mode, propagate what the pull brought down back to the skill directory,
+# so the runners see edits made on other machines.
+if [ "$copy_mode" -eq 1 ]; then
+  for file in "${FILES[@]}"; do
+    skill_file="$SKILL_DIR/$file"
+    if [ -f "$data_dir/$file" ] && [ -f "$skill_file" ] && [ ! -L "$skill_file" ]; then
+      cmp -s "$data_dir/$file" "$skill_file" || cp -f "$data_dir/$file" "$skill_file"
+    fi
+  done
 fi

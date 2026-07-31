@@ -61,8 +61,16 @@ for file in "${FILES[@]}"; do
     continue
   fi
 
-  ln -sfn "$source_file" "$target"
-  echo "  - $file: linked" >&2
+  ln -sfn "$source_file" "$target" 2>/dev/null || true
+  if [ -L "$target" ]; then
+    echo "  - $file: linked" >&2
+  else
+    # Windows: Git Bash quietly copies instead of symlinking unless Developer Mode
+    # symlinks are enabled. Fall back to an explicit copy — sync-personal-data.sh
+    # detects copy mode and copies changes back before committing.
+    cp -f "$source_file" "$target"
+    echo "  - $file: copied (symlinks unavailable — sync-data will copy changes back)" >&2
+  fi
 done
 
 exit 0
