@@ -312,9 +312,12 @@ BROWSER_PROVIDER=browserless
 BROWSERLESS_TOKEN=your-token
 # Defaults to the Amsterdam region (closest of Browserless's SFO/LON/AMS to Israel).
 # BROWSERLESS_URL=wss://production-ams.browserless.io
+# Shufersal geo-blocks Browserless's datacenter IPs (see "Region matters" below), so in
+# practice you need the residential proxy pinned to Israel:
+BROWSERLESS_URL=wss://production-ams.browserless.io?proxy=residential&proxyCountry=il
 ```
 
-**Browserbase** — the only provider that can give you an Israeli exit IP, via its proxy option:
+**Browserbase** — can also give you an Israeli exit IP, via its proxy option:
 
 ```
 BROWSER_PROVIDER=browserbase
@@ -341,10 +344,14 @@ npm run check-browser -- --no-login  # config + browser only, no credentials nee
 
 **Worth knowing before you pay for a plan:**
 
-- **Region matters.** Shufersal is an Israeli retailer and can geo-block or geo-redirect foreign
-  traffic. Browserless has no Israeli region (SFO/LON/AMS only), so Amsterdam is the closest you
-  can get; if you run into blocks, Browserbase with `BROWSERBASE_PROXY_COUNTRY=IL` is the option
-  that puts you on an Israeli IP.
+- **Region matters — an Israeli exit IP is required, not just nice to have.** Shufersal serves an
+  "access from selected countries only" page to foreign IPs, with no login form on it, so the
+  doctor fails waiting for `#j_username`. Browserless has no Israeli region (SFO/LON/AMS only) and
+  its Amsterdam datacenter IPs are blocked; what works is routing the session through Browserless's
+  residential proxy pinned to Israel, by adding `?proxy=residential&proxyCountry=il` to
+  `BROWSERLESS_URL` (the skill appends the token correctly to a URL that already has query
+  params). Residential proxy traffic is billed per MB on top of session units. On Browserbase,
+  `BROWSERBASE_PROXY_COUNTRY=IL` does the same job.
 - **Your credentials travel to the provider.** The Shufersal login is typed into a browser running
   on someone else's infrastructure. That's inherent to any hosted-browser setup — decide if you're
   comfortable with it before switching.

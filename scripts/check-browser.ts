@@ -55,7 +55,10 @@ function troubleshooting(provider: string | null): string {
       return (
         'Hosted providers commonly fail for one of: a wrong or expired token, a websocket URL ' +
         'the provider does not serve (Browserless v2 wants a /chromium path), or Shufersal ' +
-        'refusing a non-Israeli exit IP — see the "Hosted headless browser" section of the README.'
+        'refusing a non-Israeli exit IP. A timeout waiting for #j_username is the geo-block: ' +
+        'foreign IPs get a "selected countries only" page with no login form. On Browserless, ' +
+        'add ?proxy=residential&proxyCountry=il to BROWSERLESS_URL; on Browserbase, set ' +
+        'BROWSERBASE_PROXY_COUNTRY=IL — see the "Hosted headless browser" section of the README.'
       );
   }
 }
