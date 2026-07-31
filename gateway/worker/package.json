@@ -1,0 +1,17 @@
+{
+  "name": "shufersal-telegram-gateway",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker that forwards Telegram messages to the shufersal-shop Claude Code routine.",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260730.1",
+    "typescript": "5.9.2",
+    "wrangler": "^4.20.0"
+  }
+}

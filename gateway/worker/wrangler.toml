@@ -1,0 +1,15 @@
+name = "shufersal-telegram-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# Secrets are NOT set here — they would end up in git. Set each one with:
+#   npx wrangler secret put TELEGRAM_BOT_TOKEN
+#   npx wrangler secret put TELEGRAM_SECRET_TOKEN
+#   npx wrangler secret put ROUTINE_ID
+#   npx wrangler secret put ROUTINE_TOKEN
+#   npx wrangler secret put ALLOWED_USER_IDS
+#
+# See ../README.md for where each value comes from.
+
+[observability]
+enabled = true
