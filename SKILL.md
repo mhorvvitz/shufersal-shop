@@ -1,9 +1,9 @@
 ---
 name: shufersal-shop
 description: Add grocery products to a Shufersal online shopping cart using natural language. Use this skill whenever the user mentions adding groceries, food items, or products to their Shufersal cart, shopping list, or online grocery order. Triggers on phrases like "add milk and bread", "I need 3 yogurts", "put eggs in the cart", "buy some cheese", "get me 2 bottles of water", or any Hebrew grocery item names. Also use when the user wants to search for products on Shufersal, view their cart, remove items, or manage cart contents. Even if the user doesn't say "Shufersal" explicitly, use this skill when they mention grocery shopping in the context of this project.
-compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Also needs a local Chrome via CHROME_PATH, Shufersal credentials in a local .env, and network access.
+compatibility: Runs via Node.js (`npx tsx scripts/*.ts`). Depends on the shufersal-automation library, which is vendored in `vendor/shufersal-automation` (MIT) and wired up by `npm install` (declared in package.json as a `file:` dependency). Needs Shufersal credentials in a local .env and network access, plus a browser to drive — either a local Chrome via CHROME_PATH (default) or a hosted headless browser via BROWSER_PROVIDER, which is what lets the skill run somewhere without a desktop Chrome.
 metadata:
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Shufersal Shop - Natural Language Grocery Shopping
@@ -55,6 +55,20 @@ to add items — stop and help the user create it first:
 > buy. I can build one from your recent Shufersal orders (`npm run build-dictionary -- 20`, then we
 > curate it together), or you can start from the bundled 10-item sample
 > (`product-dictionary.sample.json`). Which would you prefer?"
+
+**After changing the dictionary or the suggester cache, sync the data repo.** When the personal
+files live in the private data repo (they're symlinks — `ls -l product-dictionary.json` shows
+it), run `npm run sync-data` after curating the dictionary (new entries, added aliases, swapped
+product codes, unavailable flags) or after `suggest --refresh`. It commits just those two files,
+pulls what other machines pushed, and pushes — so the laptop and cloud sessions stay converged.
+If it reports a conflict, tell the user; never resolve a conflicted dictionary by guessing.
+
+**In a cloud session, check for a data repo before offering to rebuild.** The dictionary is
+gitignored and this repo is public, so personal data lives in a separate private repo that the
+`SessionStart` hook symlinks in. A missing dictionary there usually means that repo wasn't
+attached to the session — not that the user needs to build a new one. Run
+`bash scripts/link-personal-data.sh` to see what it found, and say so rather than starting a
+20-order rescan that would silently duplicate work they've already done.
 
 Once it exists, check the product dictionary at `product-dictionary.json`. This file contains products the user has ordered before, with their exact Shufersal product codes, brands, typical quantities, and human-friendly aliases in both English and Hebrew.
 
@@ -355,7 +369,11 @@ shufersal-shop/
 │   ├── suggest.ts            ← cadence-based "what should I restock" suggestions
 │   ├── search.ts             ← read-only product search (one login, one or many queries)
 │   ├── build-dictionary.ts   ← scans order history to seed the dictionary
-│   └── lib/                  ← shared helpers (order-stats, dictionary, chunk)
+│   ├── check-browser.ts      ← doctor: verifies the configured browser (local or hosted)
+│   ├── link-personal-data.sh ← symlinks the dictionary in from a private data repo
+│   ├── sync-personal-data.sh ← commits/pulls/pushes the data repo (npm run sync-data)
+│   ├── session-start.sh      ← SessionStart hook: installs deps (cloud) + links data
+│   └── lib/                  ← shared helpers (browser, env, order-stats, dictionary, chunk)
 ├── order-stats.json          ← suggester cache (personal, gitignored; built by `suggest --refresh`)
 ├── vendor/
 │   └── shufersal-automation/ ← bundled library source (MIT) — the only external dependency
@@ -372,7 +390,8 @@ The runner (`scripts/add-to-cart.ts`):
 1. Loads `product-dictionary.json`
 2. Matches each CLI argument against aliases (exact, case-insensitive)
 3. Separates results into matched / unmatched / ambiguous
-4. Creates a bot (`headless: true`) and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, `CHROME_PATH`)
+4. Creates a bot and session from `.env` (`SHUFERSAL_USERNAME`, `SHUFERSAL_PASSWORD`, and whichever
+   browser `BROWSER_PROVIDER` selects — see "Which Browser the Runners Drive")
 5. Snapshots the cart, adds matched items via `session.addToCart()` **in chunks** (retrying
    and bisecting a failing chunk to isolate a bad item), snapshots again, and verifies each
    item actually landed (looking up failures via `getProductByCode` for a reason)
@@ -382,6 +401,39 @@ The runner (`scripts/add-to-cart.ts`):
 
 You normally never edit the runner — just call it with the right arguments. If you find yourself
 wanting to write a new one-off script to add items, stop: run this instead.
+
+## Which Browser the Runners Drive
+
+Every runner drives a real Chrome. Where that Chrome comes from is set by `BROWSER_PROVIDER`
+in `.env`, and **you never pass it per-command** — the runners read it themselves:
+
+| `BROWSER_PROVIDER` | What it uses | Also needs |
+|--------------------|--------------|------------|
+| `local` (default)  | Chrome on this machine | `CHROME_PATH` (and `CHROME_ARGS` if Chrome won't start) |
+| `browserless`      | A Browserless instance | `BROWSERLESS_TOKEN` (`BROWSERLESS_URL` to change region/self-host) |
+| `browserbase`      | A Browserbase session | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` (`BROWSERBASE_PROXY_COUNTRY=IL`) |
+| `cdp`              | Any CDP websocket you run | `BROWSER_WS_ENDPOINT` |
+
+Omitting `BROWSER_PROVIDER` keeps the original local-Chrome behaviour, so existing setups are
+unaffected.
+
+**When a run fails before it reaches Shufersal** — a connection error, a 403 from a hosted
+provider, "Browser was not found at the configured executablePath", or Chrome refusing to start
+— don't retry the runner and don't start editing scripts. Run the doctor first:
+
+```bash
+npx tsx scripts/check-browser.ts             # config + browser + Shufersal login
+npx tsx scripts/check-browser.ts --no-login  # config + browser only (no credentials needed)
+```
+
+It prints the resolved provider, the redacted target, the browser version it actually reached,
+and a provider-specific hint on failure. It is strictly read-only. Report what it says rather
+than guessing at the cause — the usual answers are a wrong or expired token, a region that
+Shufersal geo-blocks, or a missing `CHROME_ARGS=--no-sandbox`.
+
+Never print a token, an API key, or a raw `BROWSER_WS_ENDPOINT` back to the user — they carry
+credentials. Refer to them by name (`BROWSERLESS_TOKEN`), and use the doctor's already-redacted
+output when you need to show what's configured.
 
 ## Managing the Dictionary
 

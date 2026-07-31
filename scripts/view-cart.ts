@@ -1,10 +1,7 @@
-import { ShufersalBot } from 'shufersal-automation';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-
-// Load credentials from the skill's own .env (see README).
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+import { requireCredentials } from './lib/env';
+import { createBot } from './lib/browser';
 
 // Cart items only carry a productCode, so map codes back to dictionary names/brands.
 interface DictionaryEntry { id: string; name: string; brand: string; }
@@ -15,18 +12,14 @@ const dictionary: DictionaryEntry[] = fs.existsSync(dictPath)
   : [];
 const byCode = new Map(dictionary.map((e) => [e.id, e]));
 
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+// Importing lib/env loads the skill's own .env (see README).
+const { username: USERNAME, password: PASSWORD } = requireCredentials();
 
 // Read-only: lists the current cart contents. Never touches checkout or time slots.
 async function main() {
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const browser = await createBot();
+  console.error(`Browser: ${browser.description}`);
+  const session = await browser.bot.createSession(USERNAME, PASSWORD);
 
   try {
     const cart = await session.getCartItems();
@@ -52,7 +45,7 @@ async function main() {
     console.log('RESULT_JSON_END');
   } finally {
     await session.close();
-    await bot.terminate();
+    await browser.close();
   }
 }
 

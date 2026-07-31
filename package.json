@@ -11,9 +11,14 @@
     "suggest": "tsx scripts/suggest.ts",
     "search": "tsx scripts/search.ts",
     "sample-stats": "tsx scripts/sample-stats.ts",
-    "typecheck": "tsc --noEmit"
+    "check-browser": "tsx scripts/check-browser.ts",
+    "link-data": "bash scripts/link-personal-data.sh",
+    "sync-data": "bash scripts/sync-personal-data.sh",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test scripts/lib/*.test.ts scripts/*.test.ts"
   },
   "dependencies": {
+    "puppeteer-core": "^24.2.1",
     "shufersal-automation": "file:vendor/shufersal-automation"
   },
   "devDependencies": {

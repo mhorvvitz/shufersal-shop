@@ -1,24 +1,16 @@
-import { ShufersalBot } from 'shufersal-automation';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { readDictionary, type DictionaryEntry } from './lib/dictionary';
+import { requireCredentials } from './lib/env';
+import { createBot } from './lib/browser';
 
 // Removing is one call per item (session.removeFromCart sets the line quantity to 0).
 // A short pause between calls reduces throttling, mirroring the add runner.
 const REMOVE_DELAY_MS = 800;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// Load credentials from the skill's own .env (see README).
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
-
-const USERNAME = process.env['SHUFERSAL_USERNAME'];
-const PASSWORD = process.env['SHUFERSAL_PASSWORD'];
-const CHROME_PATH = process.env['CHROME_PATH'];
-
-if (!USERNAME || !PASSWORD || !CHROME_PATH) {
-  throw new Error('SHUFERSAL_USERNAME, SHUFERSAL_PASSWORD, and CHROME_PATH must be set in .env');
-}
+// Importing lib/env loads the skill's own .env (see README).
+const { username: USERNAME, password: PASSWORD } = requireCredentials();
 
 // The dictionary is optional here: you can remove by raw product code without it. When it
 // exists we use it to resolve aliases and to print friendly names for codes.
@@ -111,8 +103,9 @@ async function main(): Promise<void> {
     ambiguous: ambiguous.map((a) => a.query),
   });
 
-  const bot = new ShufersalBot({ executablePath: CHROME_PATH, headless: true });
-  const session = await bot.createSession(USERNAME!, PASSWORD!);
+  const browser = await createBot();
+  log('Browser ready', { provider: browser.provider, using: browser.description });
+  const session = await browser.bot.createSession(USERNAME, PASSWORD);
 
   try {
     // Snapshot before so we can skip items that aren't there and verify the ones that are.
@@ -167,7 +160,7 @@ async function main(): Promise<void> {
     console.log('RESULT_JSON_END');
   } finally {
     await session.close();
-    await bot.terminate();
+    await browser.close();
   }
 }
 

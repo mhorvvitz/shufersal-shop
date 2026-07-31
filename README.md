@@ -46,7 +46,8 @@ the wrong thing.
 ## Who it's for
 
 - You shop at **Shufersal online** and want it to be faster and less repetitive.
-- You use **Claude Code** (desktop app or CLI).
+- You use **Claude Code** (desktop app, CLI, or web — see
+  [running without a local Chrome](#running-without-a-local-chrome-hosted-headless-browser)).
 - **You don't need to be a developer.** If you're comfortable copying a few commands into a terminal
   once during setup, you're good — day to day, you just talk to Claude.
 
@@ -67,8 +68,11 @@ You review the cart and check out yourself on the Shufersal website. The skill n
 
 ## Get started
 
-You'll need [Node.js](https://nodejs.org), a local Google Chrome, and a Shufersal online account.
-Setup is a few one-time commands; after that you just talk to Claude.
+You'll need [Node.js](https://nodejs.org), a Shufersal online account, and a browser for the skill
+to drive — either a local Google Chrome or a
+[hosted headless browser](#running-without-a-local-chrome-hosted-headless-browser) if you'd rather
+not depend on Chrome being installed. Setup is a few one-time commands; after that you just talk to
+Claude.
 
 1. **Get the skill:**
    ```bash
@@ -79,6 +83,7 @@ Setup is a few one-time commands; after that you just talk to Claude.
 2. **Add your Shufersal login** (kept locally in `.env`, never committed):
    ```bash
    cp .env.example .env   # then fill in your Shufersal username, password, and CHROME_PATH
+   npm run check-browser  # confirms the browser works before you rely on it
    ```
 3. **Set up your product list** — this is what lets "milk" map to the exact product you buy. It's
    personal, so it isn't shipped with the repo. Build it from your real order history (recommended)
@@ -165,10 +170,11 @@ skill is invoked by the `name` in `SKILL.md`, so it shows up as `/shufersal-shop
 | `npm run search -- "חלב 3%"` | Read-only product search; takes one or many queries in a single login (`-- --limit N "q1" "q2"`) |
 | `npm run sample-stats` | Write a sample `order-stats.json` (aligned to the sample dictionary) to try the suggester without a scan |
 | `npm run build-dictionary -- 20` | Scan the last 20 orders into `dictionary-draft.json` (also warms the suggester cache) |
+| `npm run check-browser` | Verify the configured browser (local or hosted) and the Shufersal login; read-only |
 | `npm run typecheck` | Type-check the scripts |
+| `npm test` | Run the unit tests |
 
-(You can also call scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.) Run the
-unit tests with `npx tsx --test scripts/lib/*.test.ts scripts/*.test.ts`.
+(You can also call scripts directly, e.g. `npx tsx scripts/add-to-cart.ts "milk" "pita=3"`.)
 
 ### Restock suggestions
 
@@ -282,18 +288,169 @@ git subtree pull --prefix=vendor/shufersal-automation upstream main --squash
 npm install
 ```
 
+### Running without a local Chrome (hosted headless browser)
+
+By default the skill launches Chrome on your own machine, which means it only works where Chrome
+is installed. Point `BROWSER_PROVIDER` at a hosted browser instead and the same runners work from
+a server, a container, a CI job, or Claude Code on the web.
+
+| `BROWSER_PROVIDER` | Uses | Required settings |
+|--------------------|------|-------------------|
+| `local` *(default)* | Chrome on this machine | `CHROME_PATH` |
+| `browserless` | [Browserless](https://www.browserless.io) (hosted or self-hosted) | `BROWSERLESS_TOKEN` |
+| `browserbase` | [Browserbase](https://www.browserbase.com) | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` |
+| `cdp` | Any Chrome DevTools Protocol websocket | `BROWSER_WS_ENDPOINT` |
+
+Nothing else changes — every command (`add`, `remove`, `view`, `search`, `suggest`,
+`build-dictionary`) picks the browser up from `.env`. Leaving `BROWSER_PROVIDER` unset keeps the
+original local-Chrome behaviour, so existing setups don't need touching.
+
+**Browserless:**
+
+```
+BROWSER_PROVIDER=browserless
+BROWSERLESS_TOKEN=your-token
+# Defaults to the Amsterdam region (closest of Browserless's SFO/LON/AMS to Israel).
+# BROWSERLESS_URL=wss://production-ams.browserless.io
+```
+
+**Browserbase** — the only provider that can give you an Israeli exit IP, via its proxy option:
+
+```
+BROWSER_PROVIDER=browserbase
+BROWSERBASE_API_KEY=your-key
+BROWSERBASE_PROJECT_ID=your-project-id
+BROWSERBASE_PROXY_COUNTRY=IL
+```
+
+**Your own browser** — a container, a VPS, or `chrome --remote-debugging-port=9222`:
+
+```
+BROWSER_PROVIDER=cdp
+BROWSER_WS_ENDPOINT=ws://127.0.0.1:9222/devtools/browser/<id>
+```
+
+**Check it before you rely on it.** This connects to the configured browser, reports the version
+it actually reached, and (unless you pass `--no-login`) verifies the Shufersal login. It's
+read-only — it never adds, removes, or checks out:
+
+```bash
+npm run check-browser              # config + browser + Shufersal login
+npm run check-browser -- --no-login  # config + browser only, no credentials needed
+```
+
+**Worth knowing before you pay for a plan:**
+
+- **Region matters.** Shufersal is an Israeli retailer and can geo-block or geo-redirect foreign
+  traffic. Browserless has no Israeli region (SFO/LON/AMS only), so Amsterdam is the closest you
+  can get; if you run into blocks, Browserbase with `BROWSERBASE_PROXY_COUNTRY=IL` is the option
+  that puts you on an Israeli IP.
+- **Your credentials travel to the provider.** The Shufersal login is typed into a browser running
+  on someone else's infrastructure. That's inherent to any hosted-browser setup — decide if you're
+  comfortable with it before switching.
+- **Sessions cost money and are ended on exit.** Each command opens a session and closes it in a
+  `finally` block, so a crashed run shouldn't leave a session billing.
+
+### Running from a phone (Claude Code cloud sessions)
+
+With a hosted browser configured, the skill can run in a [Claude Code cloud
+session](https://code.claude.com/docs/en/claude-code-on-the-web), which you can drive from the
+Claude mobile app. Two things need arranging first.
+
+**1. Network access.** Cloud environments default to a "Trusted" allowlist that covers package
+registries and GitHub only. In the environment settings at [claude.ai/code](https://claude.ai/code),
+set **Network access** to **Custom**, keep *Also include default list of common package managers*
+checked, and add:
+
+```
+*.browserless.io
+*.shufersal.co.il
+shufersal.co.il
+```
+
+Only the first is strictly required when `BROWSER_PROVIDER=browserless`: the page navigation happens
+inside the *remote* browser, so Shufersal traffic leaves Browserless's network, not the session's.
+The Shufersal entries cost nothing and save a confusing debugging session if you ever switch
+providers.
+
+**2. Your personal data.** A cloud session starts from a fresh clone, and
+`product-dictionary.json` is gitignored — so it won't exist, and the add runner will refuse to
+match anything. Since this repo is public, the dictionary can't simply be committed here: it's a
+detailed record of what your household buys.
+
+Keep it in a **separate private repo** instead, holding just the personal files:
+
+```
+shufersal-shop-data/
+├── product-dictionary.json
+└── order-stats.json          ← optional; the suggester cache
+```
+
+Create it from the machine that already has those files:
+
+```bash
+mkdir shufersal-shop-data && cd shufersal-shop-data && git init
+cp ../shufersal-shop/product-dictionary.json .
+cp ../shufersal-shop/order-stats.json . 2>/dev/null || true
+git add -A && git commit -m "Personal Shufersal data"
+# create a PRIVATE repo on GitHub, then:
+git remote add origin git@github.com:<you>/shufersal-shop-data.git
+git push -u origin main
+```
+
+Attach **both** repos to the cloud session. The `SessionStart` hook in `.claude/settings.json`
+then runs `scripts/link-personal-data.sh`, which finds the data repo as a sibling checkout and
+symlinks the files into place. Symlinks rather than copies, so when Claude curates the dictionary
+— adding an alias, swapping a discontinued product code — the edit lands in the data repo where
+you can commit it.
+
+Set `SHUFERSAL_DATA_DIR` if your checkout lives somewhere else. If no data repo is found the hook
+says so and continues; commands that don't need a dictionary (`search`, `view-cart`,
+`check-browser`) work regardless.
+
+**Use the same layout on your own machine** so laptop and cloud edits converge instead of
+drifting. One-time move — put the real files in the data repo and link them back:
+
+```bash
+cd shufersal-shop
+mv product-dictionary.json ../shufersal-shop-data/
+mv order-stats.json ../shufersal-shop-data/ 2>/dev/null || true
+npm run link-data     # symlinks them back into place
+```
+
+From then on every edit — yours or Claude's — lands in the data repo's working tree, and syncing
+is one command:
+
+```bash
+npm run sync-data
+```
+
+It commits **only** the two data files, pulls whatever another machine or cloud session pushed
+(rebase, so history stays linear), and pushes. On a genuine conflict it stops and tells you
+rather than guessing which version of your dictionary wins. The skill runs this itself after it
+curates the dictionary or refreshes the suggester cache.
+
+> **Keep credentials out of the data repo.** Put them in the environment's **Environment
+> variables** field instead. Anything committed to git stays in its history permanently, so
+> rotating a password there doesn't actually retract the old one — and cloud session transcripts
+> can be shared, carrying private-repo file contents with them.
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org)
-- A local Google Chrome installation (set `CHROME_PATH` in `.env`)
+- A browser to drive: either a local Google Chrome (set `CHROME_PATH`) or a
+  [hosted headless browser](#running-without-a-local-chrome-hosted-headless-browser)
 - A Shufersal online account
 
-`.env` holds your credentials and is gitignored:
+`.env` holds your credentials and is gitignored — see `.env.example` for every supported setting:
 
 ```
 SHUFERSAL_USERNAME=your-username
 SHUFERSAL_PASSWORD=your-password
+
+BROWSER_PROVIDER=local
 CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# CHROME_ARGS=--no-sandbox   # containers and WSL usually need this
 ```
 
 ### Files
@@ -310,7 +467,10 @@ CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 | `scripts/search.ts` | Read-only product search; one or many queries per login (find a product not on your list, or a replacement) |
 | `scripts/build-dictionary.ts` | Scans order history to seed the dictionary (and warm the suggester cache) |
 | `scripts/sample-stats.ts` | Generates a sample `order-stats.json` to try the suggester with no scan |
-| `scripts/lib/` | Shared helpers: `order-stats`, `dictionary`, `chunk` — each with unit tests |
+| `scripts/check-browser.ts` | Doctor for the browser setup — resolves the provider, connects, verifies login |
+| `scripts/lib/browser.ts` | Resolves `BROWSER_PROVIDER` into a browser (local Chrome or a hosted service) |
+| `scripts/lib/env.ts` | Loads `.env` and validates the Shufersal credentials |
+| `scripts/lib/` | Shared helpers: `browser`, `env`, `order-stats`, `dictionary`, `chunk` — most with unit tests |
 | `order-stats.json` | Suggester cache — **personal, gitignored** |
 | `logs/add-to-cart.log` | Per-run trace from the add runner (gitignored) |
 | `logs/remove-from-cart.log` | Per-run trace from the remove runner (gitignored) |
