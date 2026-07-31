@@ -3,6 +3,13 @@ node_modules/
 .env
 dictionary-draft.json
 
+# Local secrets for `wrangler dev` (gateway/worker). Real secrets live in
+# `wrangler secret put`, never in the repo.
+.dev.vars
+
+# Wrangler's local build/state cache.
+.wrangler/
+
 # Personal scan cache for the suggester (like the dictionary, reveals habits).
 order-stats.json
 
